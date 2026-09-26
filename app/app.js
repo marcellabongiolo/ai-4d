@@ -2,6 +2,8 @@ const input = document.querySelector("#csvInput");
 const sampleBtn = document.querySelector("#sampleBtn");
 const statusEl = document.querySelector("#status");
 const dashboard = document.querySelector("#dashboard");
+const apiUrl = document.querySelector("#apiUrl");
+const apiBtn = document.querySelector("#apiBtn");
 
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/).filter(Boolean);
@@ -49,6 +51,8 @@ function render(result, name, rows) {
   document.querySelector("#current").textContent=result.current.toFixed(3);
   document.querySelector("#trend").textContent=result.trend;
   document.querySelector("#prediction").textContent=result.prediction.toFixed(3);
+  document.querySelector("#mae").textContent="—";
+  document.querySelector("#rmse").textContent="—";
   document.querySelector("#signalName").textContent=name;
   document.querySelector("#insight").textContent = result.trend === "Estável"
     ? "O sinal apresenta pouca variação recente."
@@ -78,3 +82,24 @@ sampleBtn.addEventListener("click", async () => {
 });
 
 window.addEventListener("resize",()=>{ if(!dashboard.classList.contains("hidden")) drawChart(window.__rows || []); });
+
+apiBtn.addEventListener("click", async () => {
+  const file = input.files?.[0];
+  const base = apiUrl.value.trim().replace(/\\/$/, "");
+  if (!file) { statusEl.textContent = "Carregue um CSV primeiro."; return; }
+  if (!base) { statusEl.textContent = "Informe a URL da API, por exemplo http://localhost:8000."; return; }
+  try {
+    const body = new FormData(); body.append("file", file);
+    statusEl.textContent = "Enviando dados para o modelo ML…";
+    const response = await fetch(base + "/predict", { method: "POST", body });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.detail || "A API retornou um erro.");
+    document.querySelector("#mae").textContent = Number(result.mae).toFixed(3);
+    document.querySelector("#rmse").textContent = Number(result.rmse).toFixed(3);
+    document.querySelector("#prediction").textContent = Number(result.next_prediction).toFixed(3);
+    document.querySelector("#signalName").textContent = result.signal;
+    statusEl.textContent = "Modelo ML executado pela API. MAE e RMSE vêm do conjunto de teste."; 
+  } catch (error) {
+    statusEl.textContent = "Não foi possível conectar à API: " + error.message;
+  }
+});
