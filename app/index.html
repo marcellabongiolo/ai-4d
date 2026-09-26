@@ -19,7 +19,7 @@
         <input id="csvInput" type="file" accept=".csv,text/csv">
         <button id="sampleBtn" class="button">Usar dados de exemplo</button>
       </div>
-      <p id="status" class="status">Aguardando dados.</p>
+      <p id="status" class="status">Aguardando dados.</p><div class="api-row"><label for="apiUrl">API local (opcional)</label><input id="apiUrl" type="url" placeholder="http://localhost:8000"><button id="apiBtn" class="button ghost">Usar ML da API</button></div>
     </section>
 
     <section id="dashboard" class="dashboard hidden">
@@ -27,7 +27,7 @@
         <article class="metric"><span>Pontos</span><strong id="points">—</strong></article>
         <article class="metric"><span>Valor atual</span><strong id="current">—</strong></article>
         <article class="metric"><span>Tendência</span><strong id="trend">—</strong></article>
-        <article class="metric"><span>Próxima previsão</span><strong id="prediction">—</strong></article>
+        <article class="metric"><span>Próxima previsão</span><strong id="prediction">—</strong></article><article class="metric"><span>MAE (ML)</span><strong id="mae">—</strong></article><article class="metric"><span>RMSE (ML)</span><strong id="rmse">—</strong></article>
       </div>
 
       <div class="panel">
