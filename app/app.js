@@ -53,7 +53,7 @@ function render(result, name, rows) {
   document.querySelector("#insight").textContent = result.trend === "Estável"
     ? "O sinal apresenta pouca variação recente."
     : `O sinal está ${result.trend.toLowerCase()}; a mudança média recente é ${result.avgDelta.toFixed(3)} por ponto.`;
-  drawChart(rows);
+  window.__rows = rows;\n  drawChart(rows);
 }
 
 function process(text) {
