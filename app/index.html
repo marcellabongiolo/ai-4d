@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI 4D — Data Intelligence</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header">
+      <div><span class="eyebrow">AI 4D / V2</span><h1>Data Intelligence</h1><p>Envie uma série temporal e transforme dados em sinais, tendências e previsões.</p></div>
+      <a class="button ghost" href="../index.html">Voltar ao projeto</a>
+    </header>
+
+    <section class="panel">
+      <div class="upload-row">
+        <label class="upload-box" for="csvInput"><strong>Carregar CSV</strong><span>Formato esperado: timestamp + uma ou mais colunas numéricas.</span></label>
+        <input id="csvInput" type="file" accept=".csv,text/csv">
+        <button id="sampleBtn" class="button">Usar dados de exemplo</button>
+      </div>
+      <p id="status" class="status">Aguardando dados.</p>
+    </section>
+
+    <section id="dashboard" class="dashboard hidden">
+      <div class="metrics">
+        <article class="metric"><span>Pontos</span><strong id="points">—</strong></article>
+        <article class="metric"><span>Valor atual</span><strong id="current">—</strong></article>
+        <article class="metric"><span>Tendência</span><strong id="trend">—</strong></article>
+        <article class="metric"><span>Próxima previsão</span><strong id="prediction">—</strong></article>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">ANÁLISE TEMPORAL</span><h2>Comportamento do sinal</h2></div><span id="signalName" class="badge">—</span></div>
+        <canvas id="chart" width="1100" height="420"></canvas>
+      </div>
+
+      <div class="insights">
+        <article class="panel"><span class="eyebrow">SINAL</span><h2>O que encontramos</h2><p id="insight">—</p></article>
+        <article class="panel"><span class="eyebrow">PRÓXIMO PASSO</span><h2>Interpretação</h2><p id="nextStep">Este resultado é experimental e serve como baseline, não como garantia de previsão.</p></article>
+      </div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
