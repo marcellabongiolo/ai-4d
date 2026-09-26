@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: ai-4d-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeployTrigger: commit
