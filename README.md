@@ -83,7 +83,8 @@ Then open http://localhost:8000.
 - [x] Interactive 4D visualization
 - [x] Responsive research-lab interface
 - [x] Conceptual system architecture
-- [ ] Temporal prediction engine
+- [x] Temporal prediction baseline (statistical)
+- [x] Learned temporal baseline with train/test evaluation
 - [ ] Real time-series dataset
 - [ ] Python inference service
 - [ ] WebGL/WebGPU acceleration
