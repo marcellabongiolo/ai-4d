@@ -37,7 +37,7 @@ The browser can keep a small local history for offline use. When an API is confi
 
 ## Database migrations
 
-The current SQLite schema is suitable for development. Because the project model adds a `projects` table and a `project_id` column to `analysis_sessions`, production deployments need a migration strategy such as Alembic before upgrading an existing database. `Base.metadata.create_all()` does not modify existing tables.
+The repository now includes an Alembic migration for the persistence schema. For a fresh database, run `alembic upgrade head`. For an existing development database created by an older API version, back it up first and run the migration against that database before starting the upgraded API. `Base.metadata.create_all()` does not modify existing tables.
 
 ## ML notes
 
