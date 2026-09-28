@@ -123,3 +123,6 @@
 .session-metrics{text-align:right}.session-metrics b{display:block;font-size:13px}.session-metrics span{display:block;color:var(--muted);font:10px "DM Mono";margin-top:6px}
 @media(max-width:700px){.session-summary{grid-template-columns:1fr 1fr}.session-summary .button{grid-column:1/-1}.session-card{display:block}.session-metrics{text-align:left;margin-top:12px}}
 @media(max-width:520px){.session-summary{grid-template-columns:1fr}}
+
+
+.auth-panel{margin-top:22px}.auth-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.auth-form{border:1px solid var(--line);padding:16px;display:grid;gap:10px;background:rgba(255,255,255,.02)}.auth-form strong{font-size:14px;margin-bottom:4px}.auth-form input{width:100%;padding:12px 14px;background:transparent;border:1px solid var(--line);color:var(--text);font:12px "DM Mono"}.auth-logout{margin-top:10px}.auth-panel .hidden{display:none!important}@media(max-width:700px){.auth-grid{grid-template-columns:1fr}}
