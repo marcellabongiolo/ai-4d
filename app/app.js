@@ -110,6 +110,7 @@ function render(result, name, rows) {
   document.querySelector("#mae").textContent="—";
   document.querySelector("#rmse").textContent="—";
   document.querySelector("#model").textContent="Baseline";
+  document.querySelector("#lags").textContent="—";
   document.querySelector("#anomalies").textContent = result.anomalyCount;
   document.querySelector("#signalName").textContent=name;
   const anomalyText = result.latestAnomaly
@@ -203,6 +204,7 @@ apiBtn.addEventListener("click", async () => {
     document.querySelector("#mae").textContent = Number(result.mae).toFixed(3);
     document.querySelector("#rmse").textContent = Number(result.rmse).toFixed(3);
     document.querySelector("#model").textContent = result.model === "linear-regression-lag" ? "Linear Lag" : "Persistence";
+    document.querySelector("#lags").textContent = result.lags ?? "—";
     document.querySelector("#prediction").textContent = Number(result.next_prediction).toFixed(3);
     document.querySelector("#signalName").textContent = result.signal;
     statusEl.textContent = "Modelo ML executado pela API. MAE e RMSE vêm do conjunto de teste."; 
