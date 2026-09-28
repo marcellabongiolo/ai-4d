@@ -577,6 +577,48 @@ function render(result, name, rows) {
   drawChart(rows, result.anomalyIndexes);
 }
 
+function loadAnalysisSessions() {
+  try { return JSON.parse(localStorage.getItem("ai4d_sessions") || "[]"); }
+  catch (_) { return []; }
+}
+
+function saveAnalysisSession(text) {
+  const parsed = parseCSV(text);
+  const result = analyze(parsed.rows);
+  const comparison = compareSignals(text);
+  const sessions = loadAnalysisSessions();
+  const session = {
+    id: Date.now(),
+    createdAt: new Date().toISOString(),
+    signal: parsed.name, points: parsed.rows.length, current: result.current,
+    prediction: result.prediction, trend: result.trend, behavior: result.behavior,
+    anomalies: result.anomalyCount, signals: comparison.map(s => s.name)
+  };
+  sessions.unshift(session);
+  localStorage.setItem("ai4d_sessions", JSON.stringify(sessions.slice(0, 20)));
+  renderSavedSessions();
+  return session;
+}
+
+function renderSavedSessions() {
+  const list = document.querySelector("#savedSessionList");
+  const summary = document.querySelector("#savedSessionSummary");
+  if (!list || !summary) return;
+  const sessions = loadAnalysisSessions();
+  summary.innerHTML = "<div class=\"session-stat\"><strong>" + sessions.length + "</strong><span>análises salvas</span></div><div class=\"session-stat\"><strong>" + (sessions[0]?.signals?.length || 0) + "</strong><span>sinais na última</span></div><button id=\"clearSessionsBtn\" class=\"button ghost\" type=\"button\">Limpar histórico</button>";
+  const clear = document.querySelector("#clearSessionsBtn");
+  clear?.addEventListener("click", () => { localStorage.removeItem("ai4d_sessions"); renderSavedSessions(); }, { once: true });
+  if (!sessions.length) { list.innerHTML = '<div class="relation-empty">Nenhuma análise salva neste navegador.</div>'; return; }
+  list.innerHTML = sessions.map((session, index) => {
+    const date = new Date(session.createdAt).toLocaleString("pt-BR");
+    return '<div class="session-card"><div><span class="eyebrow">ANÁLISE ' + String(index + 1).padStart(2, "0") + '</span><strong>' + session.signal + '</strong><small>' + date + " · " + session.points + " pontos · " + session.signals.length + ' sinal(is)</small></div><div class="session-metrics"><b>' + session.trend + '</b><span>' + session.anomalies + " anomalia(s) · previsão " + Number(session.prediction).toFixed(2) + '</span></div></div>';
+  }).join("");
+}
+
+function renderSessionPanel(text) {
+  try { saveAnalysisSession(text); }
+  catch (_) { renderSavedSessions(); }
+}
 function process(text) {
   try {
     window.__rawText=text;
@@ -594,12 +636,16 @@ function process(text) {
     renderEventInterpretation(text);
     renderEventScores(text);
     renderEventAlerts(text);
+    renderHistoricalComparison(text);
+    renderSessionPanel(text);
     statusEl.textContent="Análise concluída. Baseline temporal experimental.";
   } catch(error) {
     statusEl.textContent=error.message;
     dashboard.classList.add("hidden");
   }
 }
+
+renderSavedSessions();
 
 input.addEventListener("change", async e => {
   const file=e.target.files?.[0]; if(!file) return;
