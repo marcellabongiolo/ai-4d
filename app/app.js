@@ -26,60 +26,52 @@ function analyze(rows) {
   const volatility = Math.sqrt(deltas.reduce((a,b)=>a+(b-avgDelta)**2,0)/Math.max(deltas.length,1));
   const scale = Math.max(Math.abs(values.at(-1)), 1);
 
-  // Robust anomaly detection using rolling median + MAD.
-  // This is an interpretable baseline, not a trained anomaly model.
+  const trend = Math.abs(avgDelta) < scale*0.01 ? "Estável" : avgDelta > 0 ? "Subindo" : "Caindo";
+  const recentValues = values.slice(-Math.min(8, values.length));
+  const recentDeltas = recentValues.slice(1).map((v,i)=>v-recentValues[i]);
+  const directionChanges = recentDeltas.slice(1).filter((d,i)=>Math.sign(d)!==Math.sign(recentDeltas[i]) && Math.abs(d)>1e-9).length;
+  const meanAbsDelta = recentDeltas.reduce((a,d)=>a+Math.abs(d),0)/Math.max(recentDeltas.length,1);
+  const acceleration = recentDeltas.length >= 2 ? recentDeltas.at(-1)-recentDeltas.at(-2) : 0;
+  let behavior = "Estável";
+  if (volatility > meanAbsDelta * 0.8 && directionChanges >= 2) behavior = "Oscilatório";
+  else if (Math.abs(acceleration) > Math.max(meanAbsDelta * 0.5, 1e-9)) behavior = acceleration > 0 ? "Acelerando" : "Desacelerando";
+  else if (trend !== "Estável") behavior = trend;
+
   const windowSize = Math.min(7, values.length);
   const anomalies = [];
   for (let i = 0; i < values.length; i++) {
     const start = Math.max(0, i - windowSize + 1);
     const window = values.slice(start, i + 1).filter(Number.isFinite);
     if (window.length < 4) continue;
-    const sorted = [...window].sort((a,b) => a-b);
-    const mid = Math.floor(sorted.length / 2);
-    const median = sorted.length % 2 ? sorted[mid] : (sorted[mid-1] + sorted[mid]) / 2;
-    const deviations = sorted.map(v => Math.abs(v - median)).sort((a,b) => a-b);
-    const madMid = Math.floor(deviations.length / 2);
-    const mad = deviations.length % 2 ? deviations[madMid] : (deviations[madMid-1] + deviations[madMid]) / 2;
-    const robustZ = mad > 1e-9 ? Math.abs(values[i] - median) / (1.4826 * mad) : 0;
+    const sorted = [...window].sort((a,b)=>a-b);
+    const mid = Math.floor(sorted.length/2);
+    const median = sorted.length%2 ? sorted[mid] : (sorted[mid-1]+sorted[mid])/2;
+    const deviations = sorted.map(v=>Math.abs(v-median)).sort((a,b)=>a-b);
+    const madMid = Math.floor(deviations.length/2);
+    const mad = deviations.length%2 ? deviations[madMid] : (deviations[madMid-1]+deviations[madMid])/2;
+    const robustZ = mad > 1e-9 ? Math.abs(values[i]-median)/(1.4826*mad) : 0;
     if (robustZ >= 3.5) anomalies.push(i);
   }
 
   const anomalyDetails = anomalies.map(i => {
-    const start = Math.max(0, i - windowSize + 1);
-    const window = values.slice(start, i + 1);
-    const sorted = [...window].sort((a,b) => a-b);
-    const mid = Math.floor(sorted.length / 2);
-    const median = sorted.length % 2 ? sorted[mid] : (sorted[mid-1] + sorted[mid]) / 2;
-    const deviation = values[i] - median;
+    const start = Math.max(0, i-windowSize+1);
+    const window = values.slice(start, i+1);
+    const sorted = [...window].sort((a,b)=>a-b);
+    const mid = Math.floor(sorted.length/2);
+    const median = sorted.length%2 ? sorted[mid] : (sorted[mid-1]+sorted[mid])/2;
+    const deviation = values[i]-median;
     const direction = deviation > 0 ? "acima" : "abaixo";
-    const relative = Math.abs(deviation) / Math.max(Math.abs(median), 1) * 100;
-    return {
-      index: i,
-      timestamp: rows[i]?.timestamp || String(i + 1),
-      value: values[i],
-      median,
-      deviation,
-      direction,
-      relative
-    };
+    const relative = Math.abs(deviation)/Math.max(Math.abs(median),1)*100;
+    return {index:i,timestamp:rows[i]?.timestamp||String(i+1),value:values[i],median,deviation,direction,relative};
   });
 
   const latestDetail = anomalyDetails.at(-1) || null;
-
   return {
-    current: values.at(-1),
-    prediction,
-    avgDelta,
-    volatility,
-    trend: Math.abs(avgDelta) < scale*0.01 ? "Estável" : avgDelta > 0 ? "Subindo" : "Caindo",
-    anomalyIndexes: anomalies,
-    anomalyDetails,
-    anomalyCount: anomalies.length,
-    latestAnomaly: anomalies.includes(values.length - 1),
-    latestDetail
+    current: values.at(-1), prediction, avgDelta, volatility, trend, behavior,
+    anomalyIndexes: anomalies, anomalyDetails, anomalyCount: anomalies.length,
+    latestAnomaly: anomalies.includes(values.length-1), latestDetail
   };
 }
-
 function drawChart(rows, anomalyIndexes = []) {
   const canvas = document.querySelector("#chart");
   const ctx = canvas.getContext("2d");
