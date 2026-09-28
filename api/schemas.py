@@ -1,8 +1,17 @@
-"""API schemas for persisted analysis sessions and authentication."""
+"""API schemas for persisted analysis sessions, projects, and authentication."""
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+class ProjectCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+class ProjectResponse(ProjectCreate):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    created_at: datetime
+
 class SessionCreate(BaseModel):
+    project_id: int | None = Field(default=None, ge=1)
     signal: str = Field(min_length=1, max_length=255)
     points: int = Field(ge=1)
     current_value: float
