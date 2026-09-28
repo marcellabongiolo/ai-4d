@@ -13,7 +13,7 @@ from api.models import AnalysisSession, Project, User
 from api.schemas import LoginRequest, ProjectCreate, ProjectResponse, RegisterRequest, SessionCreate, SessionResponse, TokenResponse
 
 Base.metadata.create_all(bind=engine)
-app = FastAPI(title="AI 4D API", version="0.5.0")
+app = FastAPI(title="AI 4D API", version="0.6.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
 
 @app.get("/")
