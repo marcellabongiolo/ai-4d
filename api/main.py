@@ -9,11 +9,11 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sqlalchemy.orm import Session
 from api.auth import create_access_token, get_current_user, hash_password, verify_password
 from api.database import Base, engine, get_db
-from api.models import AnalysisSession, User
-from api.schemas import LoginRequest, RegisterRequest, SessionCreate, SessionResponse, TokenResponse
+from api.models import AnalysisSession, Project, User
+from api.schemas import LoginRequest, ProjectCreate, ProjectResponse, RegisterRequest, SessionCreate, SessionResponse, TokenResponse
 
 Base.metadata.create_all(bind=engine)
-app = FastAPI(title="AI 4D API", version="0.4.0")
+app = FastAPI(title="AI 4D API", version="0.5.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
 
 @app.get("/")
@@ -41,13 +41,39 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid email or password.", headers={"WWW-Authenticate": "Bearer"})
     return {"access_token": create_access_token(user.id), "token_type": "bearer", "user_id": user.id}
 
+@app.get("/projects", response_model=list[ProjectResponse])
+def list_projects(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return db.query(Project).filter(Project.user_id == current_user.id).order_by(Project.created_at.asc()).all()
+
+@app.post("/projects", response_model=ProjectResponse, status_code=201)
+def create_project(payload: ProjectCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Project name cannot be empty.")
+    project = Project(user_id=current_user.id, name=name)
+    db.add(project); db.commit(); db.refresh(project)
+    return project
+
+@app.delete("/projects/{project_id}", status_code=204)
+def delete_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> None:
+    project = db.query(Project).filter(Project.id == project_id, Project.user_id == current_user.id).first()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    db.query(AnalysisSession).filter(AnalysisSession.project_id == project.id, AnalysisSession.user_id == current_user.id).update({AnalysisSession.project_id: None})
+    db.delete(project); db.commit()
+
 @app.get("/sessions", response_model=list[SessionResponse])
-def list_sessions(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return db.query(AnalysisSession).filter(AnalysisSession.user_id == current_user.id).order_by(AnalysisSession.created_at.desc()).limit(20).all()
+def list_sessions(project_id: int | None = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    query = db.query(AnalysisSession).filter(AnalysisSession.user_id == current_user.id)
+    if project_id is not None:
+        query = query.filter(AnalysisSession.project_id == project_id)
+    return query.order_by(AnalysisSession.created_at.desc()).limit(20).all()
 
 @app.post("/sessions", response_model=SessionResponse, status_code=201)
 def create_session(payload: SessionCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    session = AnalysisSession(user_id=current_user.id, signal=payload.signal, points=payload.points, current_value=payload.current_value,
+    if payload.project_id is not None and db.query(Project).filter(Project.id == payload.project_id, Project.user_id == current_user.id).first() is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    session = AnalysisSession(user_id=current_user.id, project_id=payload.project_id, signal=payload.signal, points=payload.points, current_value=payload.current_value,
         prediction=payload.prediction, trend=payload.trend, behavior=payload.behavior,
         anomalies=payload.anomalies, signals_json=json.dumps(payload.signals))
     db.add(session); db.commit(); db.refresh(session)
