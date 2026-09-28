@@ -600,12 +600,91 @@ function saveAnalysisSession(text) {
   return session;
 }
 
+function getConfiguredApiBase() {
+  return (apiUrl?.value || "").trim().replace(/\/$/, "");
+}
+
+async function syncLatestSessionToApi() {
+  const sessions = loadAnalysisSessions();
+  const session = sessions[0];
+  const base = getConfiguredApiBase();
+  if (!session || !base) return false;
+  const response = await fetch(base + "/sessions", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      signal: session.signal,
+      points: session.points,
+      current_value: session.current,
+      prediction: session.prediction,
+      trend: session.trend,
+      behavior: session.behavior,
+      anomalies: session.anomalies,
+      signals: session.signals
+    })
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.detail || "A API não aceitou a análise.");
+  }
+  return true;
+}
+
+async function loadSessionsFromApi() {
+  const base = getConfiguredApiBase();
+  if (!base) return false;
+  const response = await fetch(base + "/sessions");
+  if (!response.ok) throw new Error("Não foi possível carregar o histórico da API.");
+  const remote = await response.json();
+  const sessions = remote.map(item => ({
+    id: "api-" + item.id,
+    createdAt: item.created_at,
+    signal: item.signal,
+    points: item.points,
+    current: item.current_value,
+    prediction: item.prediction,
+    trend: item.trend,
+    behavior: item.behavior,
+    anomalies: item.anomalies,
+    signals: item.signals || []
+  }));
+  localStorage.setItem("ai4d_sessions", JSON.stringify(sessions.slice(0, 20)));
+  renderSavedSessions();
+  return true;
+}
+
+function addSessionSyncControls() {
+  const summary = document.querySelector("#savedSessionSummary");
+  if (!summary || document.querySelector("#syncSessionsBtn")) return;
+  const button = document.createElement("button");
+  button.id = "syncSessionsBtn";
+  button.className = "button ghost";
+  button.type = "button";
+  button.textContent = "Sincronizar com API";
+  button.addEventListener("click", async () => {
+    try {
+      button.disabled = true;
+      button.textContent = "Sincronizando…";
+      await syncLatestSessionToApi();
+      await loadSessionsFromApi();
+      button.textContent = "Sincronizado";
+    } catch (error) {
+      button.textContent = "Sincronizar com API";
+      statusEl.textContent = "Sincronização: " + error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+  summary.appendChild(button);
+}
+
 function renderSavedSessions() {
   const list = document.querySelector("#savedSessionList");
   const summary = document.querySelector("#savedSessionSummary");
   if (!list || !summary) return;
   const sessions = loadAnalysisSessions();
   summary.innerHTML = "<div class=\"session-stat\"><strong>" + sessions.length + "</strong><span>análises salvas</span></div><div class=\"session-stat\"><strong>" + (sessions[0]?.signals?.length || 0) + "</strong><span>sinais na última</span></div><button id=\"clearSessionsBtn\" class=\"button ghost\" type=\"button\">Limpar histórico</button>";
+  addSessionSyncControls();
   const clear = document.querySelector("#clearSessionsBtn");
   clear?.addEventListener("click", () => { localStorage.removeItem("ai4d_sessions"); renderSavedSessions(); }, { once: true });
   if (!sessions.length) { list.innerHTML = '<div class="relation-empty">Nenhuma análise salva neste navegador.</div>'; return; }
