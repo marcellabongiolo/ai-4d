@@ -88,3 +88,13 @@
 .event-score-card b{display:block;font-size:13px}
 .event-score-card small{display:block;color:var(--muted);font:10px "DM Mono";margin-top:5px;line-height:1.5}
 @media(max-width:520px){.score-summary{grid-template-columns:1fr}.event-score-card{display:block}}
+
+.event-alert-panel{margin-top:24px;padding-top:24px;border-top:1px solid var(--line)}
+.alert-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.alert-stat{border:1px solid var(--line);padding:14px;background:rgba(255,255,255,.025)}
+.alert-stat strong{display:block;font-size:24px}.alert-stat span{display:block;color:var(--muted);font:10px "DM Mono";margin-top:5px}
+.event-alert-list{display:grid;gap:8px}.event-alert-card{display:flex;gap:13px;align-items:center;border:1px solid var(--line);padding:14px;background:rgba(255,255,255,.025)}
+.event-alert-card.alta{border-color:rgba(255,107,138,.4)}.event-alert-card.média{border-color:rgba(180,188,255,.35)}
+.alert-icon{width:25px;height:25px;border:1px solid var(--line);display:grid;place-items:center;font:12px "DM Mono";color:var(--accent2)}
+.event-alert-card strong{display:block;font-size:13px;line-height:1.4}.event-alert-card small{display:block;color:var(--muted);font:10px "DM Mono";margin-top:5px}
+@media(max-width:520px){.alert-summary{grid-template-columns:1fr}}
