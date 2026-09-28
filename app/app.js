@@ -94,6 +94,44 @@ function analyze(rows) {
     latestAnomaly: anomalies.includes(values.length-1), latestDetail
   };
 }
+function drawMultiChart(comparison) {
+  const canvas = document.querySelector("#multiChart");
+  if (!canvas || !comparison?.length) return;
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const width = canvas.clientWidth || 900, height = 300;
+  canvas.width = width * dpr; canvas.height = height * dpr; ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, width, height);
+  const pad={l:45,r:20,t:20,b:30}, w=width-pad.l-pad.r, h=height-pad.t-pad.b;
+  ctx.font="11px DM Mono, monospace";
+  ctx.strokeStyle="rgba(255,255,255,.08)";
+  for(let i=0;i<4;i++){const y=pad.t+h*i/3;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+w,y);ctx.stroke();}
+  comparison.forEach((signal, index) => {
+    const values = signal.values || [];
+    if (!values.length) return;
+    const min=Math.min(...values), max=Math.max(...values);
+    ctx.strokeStyle = index % 2 ? "#b4bcff" : "#72e6ff";
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    values.forEach((v,i)=>{
+      const x=pad.l+w*i/Math.max(values.length-1,1);
+      const y=pad.t+h-(v-min)/Math.max(max-min,1e-9)*h;
+      i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+    });
+    ctx.stroke();
+    ctx.fillStyle=ctx.strokeStyle;
+    ctx.fillText(signal.name, pad.l + 8, pad.t + 15 + index*15);
+  });
+}
+
+function renderSignalSummary(comparison) {
+  const el=document.querySelector("#signalSummary");
+  if(!el) return;
+  el.innerHTML=comparison.map(signal =>
+    '<div class="signal-card"><span class="eyebrow">'+signal.name+'</span><strong>'+signal.trend+'</strong><small>'+signal.anomalyCount+' anomalia(s) · '+signal.behavior+'</small></div>'
+  ).join("");
+}
+
 function drawChart(rows, anomalyIndexes = []) {
   const canvas = document.querySelector("#chart");
   const ctx = canvas.getContext("2d");
@@ -193,6 +231,10 @@ function process(text) {
   try {
     const parsed=parseCSV(text), result=analyze(parsed.rows);
     render(result, parsed.name, parsed.rows);
+    const comparison = compareSignals(text);
+    window.__comparison = comparison;
+    renderSignalSummary(comparison);
+    drawMultiChart(comparison);
     statusEl.textContent="Análise concluída. Baseline temporal experimental.";
   } catch(error) {
     statusEl.textContent=error.message;
@@ -216,7 +258,7 @@ sampleBtn.addEventListener("click", async () => {
   } catch (_) {}
 });
 
-window.addEventListener("resize",()=>{ if(!dashboard.classList.contains("hidden")) drawChart(window.__rows || [], window.__anomalies || []); });
+window.addEventListener("resize",()=>{ if(!dashboard.classList.contains("hidden")) { drawChart(window.__rows || [], window.__anomalies || []); drawMultiChart(window.__comparison || []); } });
 
 apiBtn.addEventListener("click", async () => {
   const file = input.files?.[0];
