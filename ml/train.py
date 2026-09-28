@@ -26,10 +26,17 @@ def train(values: np.ndarray, lags: int = 3, test_ratio: float = 0.25) -> dict[s
     split = min(max(1, int(len(X) * (1 - test_ratio))), len(X) - 1)
     model = LinearRegression().fit(X[:split], y[:split])
     predictions = model.predict(X[split:])
-    mae = mean_absolute_error(y[split:], predictions)
-    rmse = float(np.sqrt(mean_squared_error(y[split:], predictions)))
-    next_prediction = float(model.predict(values[-lags:].reshape(1, -1))[0])
-    return {"mae": float(mae), "rmse": rmse, "train_samples": float(split), "test_samples": float(len(y) - split), "next_prediction": next_prediction}
+
+    # Compare against a persistence baseline: predict the next value as the last observed value.
+    naive_predictions = X[split:, -1]
+    model_mae = mean_absolute_error(y[split:], predictions)
+    naive_mae = mean_absolute_error(y[split:], naive_predictions)
+    use_model = model_mae <= naive_mae
+    selected_predictions = predictions if use_model else naive_predictions
+    mae = mean_absolute_error(y[split:], selected_predictions)
+    rmse = float(np.sqrt(mean_squared_error(y[split:], selected_predictions)))
+    next_prediction = float(model.predict(values[-lags:].reshape(1, -1))[0]) if use_model else float(values[-1])
+    return {"mae": float(mae), "rmse": rmse, "train_samples": float(split), "test_samples": float(len(y) - split), "next_prediction": next_prediction, "model": "linear-regression-lag" if use_model else "persistence-baseline"}
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train the AI 4D temporal baseline.")
@@ -44,6 +51,7 @@ def main() -> None:
     print(f"Train samples: {int(metrics['train_samples'])}")
     print(f"Test samples: {int(metrics['test_samples'])}")
     print(f"Next prediction: {metrics['next_prediction']:.4f}")
+    print(f"Selected model: {metrics['model']}")
 
 if __name__ == "__main__":
     main()
