@@ -16,5 +16,11 @@ python ml/temporal_predictor.py
 2. Real time-series dataset
 3. Feature engineering
 4. Trained forecasting model
-5. Evaluation metrics
-6. API integration with the web interface
+5. Rolling-origin evaluation
+6. Model comparison against simple baselines
+7. API integration with the web interface
+
+
+## Evaluation discipline
+
+Forecasting is evaluated chronologically so future observations are not used to train earlier predictions. The evaluation script now includes a small rolling-origin check. Because the bundled dataset is synthetic and tiny, these metrics are for engineering validation only, not evidence of real-world performance.
