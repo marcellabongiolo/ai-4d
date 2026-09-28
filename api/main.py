@@ -1,4 +1,4 @@
-"""AI 4D experimental inference and persistence API."""
+"""AI 4D experimental inference, persistence, and authentication API."""
 import json
 from io import StringIO
 import numpy as np
@@ -7,18 +7,42 @@ from fastapi.middleware.cors import CORSMiddleware
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sqlalchemy.orm import Session
+from api.auth import create_access_token, hash_password, verify_password
 from api.database import Base, engine, get_db
-from api.models import AnalysisSession
-from api.schemas import SessionCreate, SessionResponse
+from api.models import AnalysisSession, User
+from api.schemas import LoginRequest, RegisterRequest, SessionCreate, SessionResponse, TokenResponse
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="AI 4D API", version="0.2.0")
+app = FastAPI(title="AI 4D API", version="0.3.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
+
+@app.get("/")
+def root() -> dict[str, str]:
+    return {"name": "AI 4D API", "status": "online", "docs": "/docs"}
 
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "model": "linear-regression-lag-baseline"}
+
+@app.post("/auth/register", response_model=TokenResponse, status_code=201)
+def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    email = str(payload.email).lower().strip()
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=409, detail="Email already registered.")
+    user = User(email=email, password_hash=hash_password(payload.password))
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"access_token": create_access_token(user.id), "token_type": "bearer", "user_id": user.id}
+
+@app.post("/auth/login", response_model=TokenResponse)
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    email = str(payload.email).lower().strip()
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password.", headers={"WWW-Authenticate": "Bearer"})
+    return {"access_token": create_access_token(user.id), "token_type": "bearer", "user_id": user.id}
 
 @app.get("/sessions", response_model=list[SessionResponse])
 def list_sessions(db: Session = Depends(get_db)):
@@ -26,11 +50,9 @@ def list_sessions(db: Session = Depends(get_db)):
 
 @app.post("/sessions", response_model=SessionResponse, status_code=201)
 def create_session(payload: SessionCreate, db: Session = Depends(get_db)):
-    session = AnalysisSession(
-        signal=payload.signal, points=payload.points, current_value=payload.current_value,
+    session = AnalysisSession(signal=payload.signal, points=payload.points, current_value=payload.current_value,
         prediction=payload.prediction, trend=payload.trend, behavior=payload.behavior,
-        anomalies=payload.anomalies, signals_json=json.dumps(payload.signals),
-    )
+        anomalies=payload.anomalies, signals_json=json.dumps(payload.signals))
     db.add(session)
     db.commit()
     db.refresh(session)
