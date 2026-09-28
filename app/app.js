@@ -17,6 +17,28 @@ function parseCSV(text) {
   return { name: headers[signalIndex] || "signal", rows };
 }
 
+function parseSignals(text) {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) throw new Error("O CSV precisa ter cabeçalho e dados.");
+  const headers = lines[0].split(",").map(v => v.trim());
+  const rows = lines.slice(1).map(line => line.split(","));
+  const signals = headers.slice(1).map((name, offset) => ({
+    name,
+    values: rows.map(parts => Number(parts[offset + 1])).filter(Number.isFinite)
+  })).filter(signal => signal.values.length >= 3);
+  if (!signals.length) throw new Error("Não encontramos sinais numéricos suficientes.");
+  return { headers, signals };
+}
+
+function compareSignals(text) {
+  const { signals } = parseSignals(text);
+  return signals.map(signal => {
+    const rows = signal.values.map((value, index) => ({ timestamp: String(index + 1), value }));
+    const result = analyze(rows);
+    return { name: signal.name || "signal", ...result };
+  });
+}
+
 function analyze(rows) {
   const values = rows.map(r => r.value);
   const recent = values.slice(-Math.min(5, values.length));
@@ -185,7 +207,13 @@ input.addEventListener("change", async e => {
 
 sampleBtn.addEventListener("click", async () => {
   const response=await fetch("../data/sample_timeseries.csv");
-  process(await response.text());
+  const text = await response.text();
+  process(text);
+  try {
+    const comparison = compareSignals(text);
+    const best = comparison.slice().sort((a,b) => b.anomalyCount - a.anomalyCount)[0];
+    if (comparison.length > 1) statusEl.textContent += ` ${comparison.length} sinais detectados: ${comparison.map(s => s.name).join(", ")}.`;
+  } catch (_) {}
 });
 
 window.addEventListener("resize",()=>{ if(!dashboard.classList.contains("hidden")) drawChart(window.__rows || [], window.__anomalies || []); });
