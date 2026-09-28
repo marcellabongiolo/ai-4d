@@ -124,6 +124,46 @@ function drawMultiChart(comparison) {
   });
 }
 
+function correlation(a,b) {
+  const n = Math.min(a.length,b.length);
+  if (n < 3) return 0;
+  const aa=a.slice(0,n), bb=b.slice(0,n);
+  const meanA=aa.reduce((s,v)=>s+v,0)/n, meanB=bb.reduce((s,v)=>s+v,0)/n;
+  let num=0, denA=0, denB=0;
+  for(let i=0;i<n;i++){const da=aa[i]-meanA, db=bb[i]-meanB; num+=da*db; denA+=da*da; denB+=db*db;}
+  const den=Math.sqrt(denA*denB);
+  return den > 1e-12 ? num/den : 0;
+}
+
+function parseAlignedSignals(text) {
+  const lines=text.trim().split(/\r?\n/).filter(Boolean);
+  if(lines.length<2) return [];
+  const headers=lines[0].split(",").map(v=>v.trim());
+  const rows=lines.slice(1).map(line=>line.split(","));
+  return headers.slice(1).map((name,offset)=>({name,values:rows.map(parts=>Number(parts[offset+1]))}));
+}
+
+function renderRelationships(text) {
+  const el=document.querySelector("#relationshipList");
+  if(!el) return;
+  const signals=parseAlignedSignals(text);
+  const pairs=[];
+  for(let i=0;i<signals.length;i++) for(let j=i+1;j<signals.length;j++){
+    const a=[],b=[];
+    for(let k=0;k<Math.min(signals[i].values.length,signals[j].values.length);k++){
+      if(Number.isFinite(signals[i].values[k]) && Number.isFinite(signals[j].values[k])){a.push(signals[i].values[k]);b.push(signals[j].values[k]);}
+    }
+    if(a.length>=3) pairs.push({a:signals[i].name,b:signals[j].name,r:correlation(a,b),n:a.length});
+  }
+  if(!pairs.length){el.innerHTML='<div class="relation-empty">Envie pelo menos dois sinais numéricos alinhados para analisar relações.</div>';return;}
+  el.innerHTML=pairs.map(p=>{
+    const abs=Math.abs(p.r);
+    const strength=abs>=.7?"Forte":abs>=.4?"Moderada":"Fraca";
+    const direction=p.r>0.1?"positiva":p.r<-0.1?"negativa":"próxima de zero";
+    return '<div class="relationship-card"><div><span class="eyebrow">'+p.a+' × '+p.b+'</span><strong>'+p.r.toFixed(2)+'</strong></div><p>Relação '+strength.toLowerCase()+' e '+direction+' · '+p.n+' pontos alinhados</p></div>';
+  }).join("");
+}
+
 function renderSignalSummary(comparison) {
   const el=document.querySelector("#signalSummary");
   if(!el) return;
@@ -235,6 +275,7 @@ function process(text) {
     window.__comparison = comparison;
     renderSignalSummary(comparison);
     drawMultiChart(comparison);
+    renderRelationships(text);
     statusEl.textContent="Análise concluída. Baseline temporal experimental.";
   } catch(error) {
     statusEl.textContent=error.message;
