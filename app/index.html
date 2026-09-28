@@ -62,6 +62,13 @@
           <canvas id="networkChart" width="1100" height="360"></canvas>
         </div>
 
+        <div class="event-timeline-panel">
+          <div class="panel-heading relation-heading"><div><span class="eyebrow">LINHA DO TEMPO</span><h2>História dos eventos</h2></div><span class="badge">Temporal</span></div>
+          <p class="relation-note">Uma visão compacta das mudanças detectadas ao longo da série. Eventos sincronizados recebem destaque.</p>
+          <div id="eventTimelineSummary" class="timeline-summary"></div>
+          <div id="eventTimeline" class="event-timeline"></div>
+        </div>
+
         <div class="sync-panel">
           <div class="panel-heading relation-heading"><div><span class="eyebrow">EVENTOS SINCRONIZADOS</span><h2>Mudanças que acontecem juntas</h2></div><span class="badge">Experimental</span></div>
           <p class="relation-note">O AI 4D procura pontos em que vários sinais mudam de direção na mesma janela temporal. Isso ajuda a encontrar eventos conjuntos, sem afirmar que um sinal causa o outro.</p>
