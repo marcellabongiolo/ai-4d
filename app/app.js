@@ -405,6 +405,43 @@ function renderEventScores(text) {
   `).join("");
 }
 
+
+function buildEventAlerts(text) {
+  const signals=parseAlignedSignals(text).filter(s=>s.values.filter(Number.isFinite).length>=4);
+  const events=detectSynchronizedEvents(text);
+  return events.map(event=>{
+    const scored=scoreEvent(event,signals);
+    const severity=scored.score>=75?"alta":scored.score>=50?"média":"baixa";
+    const message=severity==="alta"
+      ? `Evento de alta relevância no ponto ${event.index+1}: ${event.signals.join(", ")} apresentaram ${event.direction}.`
+      : severity==="média"
+        ? `Evento relevante no ponto ${event.index+1}: ${event.signals.join(", ")} apresentaram ${event.direction}.`
+        : `Mudança conjunta detectada no ponto ${event.index+1}: ${event.signals.join(", ")}.`;
+    return {...event,...scored,severity,message};
+  });
+}
+
+function renderEventAlerts(text) {
+  const list=document.querySelector("#eventAlertList");
+  const summary=document.querySelector("#eventAlertSummary");
+  if(!list||!summary)return;
+  const alerts=buildEventAlerts(text);
+  const high=alerts.filter(a=>a.severity==="alta").length;
+  const medium=alerts.filter(a=>a.severity==="média").length;
+  summary.innerHTML=`
+    <div class="alert-stat"><strong>${alerts.length}</strong><span>alertas gerados</span></div>
+    <div class="alert-stat"><strong>${high}</strong><span>alta relevância</span></div>
+    <div class="alert-stat"><strong>${medium}</strong><span>média relevância</span></div>
+  `;
+  list.innerHTML=alerts.length
+    ? alerts.slice(-8).reverse().map(a=>`
+      <div class="event-alert-card ${a.severity}">
+        <div class="alert-icon">!</div>
+        <div><strong>${a.message}</strong><small>Score ${a.score}/100 · concordância ${Math.round(a.agreement*100)}%</small></div>
+      </div>`).join("")
+    : '<div class="relation-empty">Nenhum alerta foi gerado para os eventos atuais.</div>';
+}
+
 function renderEventTimeline(text) {
   const list=document.querySelector("#eventTimeline");
   const summary=document.querySelector("#eventTimelineSummary");
@@ -556,6 +593,7 @@ function process(text) {
     renderEventTimeline(text);
     renderEventInterpretation(text);
     renderEventScores(text);
+    renderEventAlerts(text);
     statusEl.textContent="Análise concluída. Baseline temporal experimental.";
   } catch(error) {
     statusEl.textContent=error.message;
