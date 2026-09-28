@@ -36,7 +36,6 @@ def upgrade() -> None:
             sa.Column("behavior", sa.String(length=50), nullable=False),
             sa.Column("anomalies", sa.Integer(), nullable=False, server_default="0"),
             sa.Column("signals_json", sa.Text(), nullable=False, server_default="[]"),
-            sa.Column("dataset_text", sa.Text(), nullable=False, server_default=""),
         )
         op.create_index("ix_analysis_sessions_id", "analysis_sessions", ["id"], unique=False)
         op.create_index("ix_analysis_sessions_user_id", "analysis_sessions", ["user_id"], unique=False)
@@ -58,10 +57,6 @@ def upgrade() -> None:
             batch_op.add_column(sa.Column("project_id", sa.Integer(), nullable=True))
             batch_op.create_index("ix_analysis_sessions_project_id", ["project_id"], unique=False)
             batch_op.create_foreign_key("fk_analysis_sessions_project_id", "projects", ["project_id"], ["id"])
-    session_columns = {column["name"] for column in sa.inspect(op.get_bind()).get_columns("analysis_sessions")}
-    if "dataset_text" not in session_columns:
-        with op.batch_alter_table("analysis_sessions", schema=None) as batch_op:
-            batch_op.add_column(sa.Column("dataset_text", sa.Text(), nullable=False, server_default=""))
 
 def downgrade() -> None:
     inspector = sa.inspect(op.get_bind())
