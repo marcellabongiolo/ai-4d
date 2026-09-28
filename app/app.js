@@ -322,6 +322,41 @@ function buildEventTimeline(text) {
   return points;
 }
 
+function generateEventInterpretation(text) {
+  const signals=parseAlignedSignals(text).filter(s=>s.values.filter(Number.isFinite).length>=4);
+  const events=detectSynchronizedEvents(text);
+  if(!signals.length) return {headline:"Aguardando dados.",details:[]};
+
+  const details=[];
+  events.slice(-5).forEach((event,i)=>{
+    const names=event.signals.join(", ");
+    const direction=event.direction;
+    const span=event.index===event.end ? `no ponto ${event.index+1}` : `entre os pontos ${event.index+1} e ${event.end+1}`;
+    details.push(`Evento ${i+1}: ${names} apresentaram ${direction} ${span}, com concordância máxima de ${Math.round(event.agreement*100)}%.`);
+  });
+
+  const latest=events.at(-1);
+  let headline="Não foram encontrados eventos conjuntos recentes.";
+  if(latest) {
+    headline=`O evento conjunto mais recente foi uma ${latest.direction} envolvendo ${latest.signals.join(", ")}.`;
+  } else if(signals.length>=2) {
+    headline="Os sinais disponíveis não apresentaram um evento conjunto forte na janela analisada.";
+  }
+
+  return {headline,details};
+}
+
+function renderEventInterpretation(text) {
+  const headline=document.querySelector("#eventInterpretation");
+  const list=document.querySelector("#eventInterpretationList");
+  if(!headline || !list) return;
+  const result=generateEventInterpretation(text);
+  headline.textContent=result.headline;
+  list.innerHTML=result.details.length
+    ? result.details.map(d=>`<li>${d}</li>`).join("")
+    : "<li>Nenhum evento conjunto suficiente para gerar uma interpretação.</li>";
+}
+
 function renderEventTimeline(text) {
   const list=document.querySelector("#eventTimeline");
   const summary=document.querySelector("#eventTimelineSummary");
@@ -471,6 +506,7 @@ function process(text) {
     drawSignalNetwork(text);
     renderSynchronizedEvents(text);
     renderEventTimeline(text);
+    renderEventInterpretation(text);
     statusEl.textContent="Análise concluída. Baseline temporal experimental.";
   } catch(error) {
     statusEl.textContent=error.message;
