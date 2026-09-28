@@ -1,6 +1,6 @@
-"""API schemas for persisted analysis sessions."""
+"""API schemas for persisted analysis sessions and authentication."""
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 class SessionCreate(BaseModel):
     signal: str = Field(min_length=1, max_length=255)
@@ -16,3 +16,16 @@ class SessionResponse(SessionCreate):
     model_config = ConfigDict(from_attributes=True)
     id: int
     created_at: datetime
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=128)
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user_id: int
