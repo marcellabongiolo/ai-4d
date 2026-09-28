@@ -6,3 +6,12 @@
 .timeline-step small{display:block;color:var(--muted);line-height:1.5;margin-top:7px}
 @media(max-width:800px){.anomaly-timeline{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.anomaly-timeline{grid-template-columns:1fr}}
+
+.timeline-step{opacity:.55;transition:opacity .2s,transform .2s,border-color .2s}
+.timeline-step.active{opacity:1;transform:translateY(-2px);border-color:rgba(114,230,255,.45)}
+.anomaly-list{margin-top:16px;display:grid;gap:8px;max-height:180px;overflow:auto}
+.anomaly-event{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.anomaly-dot{width:7px;height:7px;border-radius:50%;background:#ff6b8a;margin-top:6px;flex:0 0 auto}
+.anomaly-event strong{display:block;font:12px "DM Mono";letter-spacing:.02em}
+.anomaly-event small{display:block;color:var(--muted);margin-top:3px;line-height:1.4}
+.anomaly-empty{color:var(--muted);font-size:13px;padding-top:10px}
