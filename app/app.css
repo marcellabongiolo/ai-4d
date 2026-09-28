@@ -30,3 +30,10 @@
 .relationship-card strong{display:block;font-size:26px;margin-top:7px}
 .relationship-card p{color:var(--muted);font:10px "DM Mono";line-height:1.5;margin:8px 0 0}
 .relation-empty{color:var(--muted);font-size:13px;padding:12px 0}
+
+.lag-panel{margin-top:22px;padding-top:20px;border-top:1px solid var(--line)}
+.lag-panel h3{font-size:20px;margin:7px 0 5px}
+.lag-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.lag-card{border:1px solid var(--line);padding:14px;background:rgba(255,255,255,.025)}
+.lag-card strong{display:block;font-size:22px;margin:7px 0}
+.lag-card small{display:block;color:var(--muted);font:10px "DM Mono";line-height:1.5}
