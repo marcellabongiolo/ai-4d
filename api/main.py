@@ -46,16 +46,25 @@ async def predict(file: UploadFile = File(...)) -> dict[str, object]:
         split = min(max(1, int(len(X) * 0.75)), len(X) - 1)
         model = LinearRegression().fit(X[:split], y[:split])
         test_predictions = model.predict(X[split:])
-        next_prediction = float(model.predict(values[-lags:].reshape(1, -1))[0])
+        naive_predictions = X[split:, -1]
+
+        model_mae = mean_absolute_error(y[split:], test_predictions)
+        naive_mae = mean_absolute_error(y[split:], naive_predictions)
+        use_model = model_mae <= naive_mae
+        selected_predictions = test_predictions if use_model else naive_predictions
+        next_prediction = (
+            float(model.predict(values[-lags:].reshape(1, -1))[0])
+            if use_model else float(values[-1])
+        )
         return {
             "signal": numeric_column,
             "current": float(values[-1]),
             "next_prediction": next_prediction,
-            "mae": float(mean_absolute_error(y[split:], test_predictions)),
-            "rmse": float(np.sqrt(mean_squared_error(y[split:], test_predictions))),
+            "mae": float(mean_absolute_error(y[split:], selected_predictions)),
+            "rmse": float(np.sqrt(mean_squared_error(y[split:], selected_predictions))),
             "train_samples": int(split),
             "test_samples": int(len(y) - split),
-            "model": "linear-regression-lag-baseline",
+            "model": "linear-regression-lag" if use_model else "persistence-baseline",
         }
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
