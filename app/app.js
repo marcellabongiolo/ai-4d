@@ -162,6 +162,31 @@ function detectLagRelationships(text){
   }
   return pairs;
 }
+function drawSignalNetwork(text){
+  const canvas=document.querySelector("#networkChart"); if(!canvas)return;
+  const signals=parseAlignedSignals(text);
+  const nodes=signals.filter(s=>s.values.filter(Number.isFinite).length>=3);
+  const ctx=canvas.getContext("2d"),dpr=window.devicePixelRatio||1,width=canvas.clientWidth||900,height=360;
+  canvas.width=width*dpr;canvas.height=height*dpr;ctx.scale(dpr,dpr);ctx.clearRect(0,0,width,height);
+  if(nodes.length<2){ctx.fillStyle="rgba(255,255,255,.45)";ctx.font="12px DM Mono, monospace";ctx.fillText("Adicione pelo menos dois sinais numéricos.",30,50);return;}
+  const cx=width/2,cy=height/2,rx=Math.min(width*.36,260),ry=Math.min(height*.31,105);
+  const pos=nodes.map((n,i)=>{const a=-Math.PI/2+i*2*Math.PI/nodes.length;return{x:cx+Math.cos(a)*rx,y:cy+Math.sin(a)*ry};});
+  const edges=[];
+  for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
+    const a=[],b=[];
+    for(let k=0;k<Math.min(nodes[i].values.length,nodes[j].values.length);k++)if(Number.isFinite(nodes[i].values[k])&&Number.isFinite(nodes[j].values[k])){a.push(nodes[i].values[k]);b.push(nodes[j].values[k]);}
+    if(a.length>=3)edges.push({i,j,r:correlation(a,b)});
+  }
+  edges.forEach(e=>{
+    const p=pos[e.i],q=pos[e.j],strength=Math.abs(e.r);
+    ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);
+    ctx.strokeStyle="rgba(124,140,255,"+(.12+.55*strength)+")";ctx.lineWidth=1+4*strength;ctx.stroke();
+  });
+  pos.forEach((p,i)=>{
+    ctx.beginPath();ctx.arc(p.x,p.y,24,0,Math.PI*2);ctx.fillStyle="rgba(11,15,24,.95)";ctx.fill();ctx.strokeStyle="rgba(180,188,255,.55)";ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle="#eef2ff";ctx.font="11px DM Mono, monospace";ctx.textAlign="center";ctx.fillText(nodes[i].name.slice(0,18),p.x,p.y+4);
+  });
+}
 function renderLagRelationships(text){
   const el=document.querySelector("#lagList"); if(!el)return;
   const pairs=detectLagRelationships(text);
@@ -299,6 +324,7 @@ function render(result, name, rows) {
 
 function process(text) {
   try {
+    window.__rawText=text;
     const parsed=parseCSV(text), result=analyze(parsed.rows);
     render(result, parsed.name, parsed.rows);
     const comparison = compareSignals(text);
@@ -307,6 +333,7 @@ function process(text) {
     drawMultiChart(comparison);
     renderRelationships(text);
     renderLagRelationships(text);
+    drawSignalNetwork(text);
     statusEl.textContent="Análise concluída. Baseline temporal experimental.";
   } catch(error) {
     statusEl.textContent=error.message;
@@ -330,7 +357,7 @@ sampleBtn.addEventListener("click", async () => {
   } catch (_) {}
 });
 
-window.addEventListener("resize",()=>{ if(!dashboard.classList.contains("hidden")) { drawChart(window.__rows || [], window.__anomalies || []); drawMultiChart(window.__comparison || []); } });
+window.addEventListener("resize",()=>{ if(!dashboard.classList.contains("hidden")) { drawChart(window.__rows || [], window.__anomalies || []); drawMultiChart(window.__comparison || []); if(window.__rawText) drawSignalNetwork(window.__rawText); } });
 
 apiBtn.addEventListener("click", async () => {
   const file = input.files?.[0];
