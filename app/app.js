@@ -357,6 +357,54 @@ function renderEventInterpretation(text) {
     : "<li>Nenhum evento conjunto suficiente para gerar uma interpretação.</li>";
 }
 
+
+function scoreEvent(event, signals) {
+  const rows = Math.min(...signals.map(s => s.values.length));
+  const i = event.index;
+  let magnitudes = [], anomalyHits = 0;
+  signals.forEach(s => {
+    if (i < 1 || i >= s.values.length) return;
+    const prev=s.values[i-1], curr=s.values[i];
+    if (!Number.isFinite(prev) || !Number.isFinite(curr)) return;
+    const delta=Math.abs(curr-prev);
+    magnitudes.push(delta/Math.max(Math.abs(prev),1));
+  });
+  const intensity = Math.min((magnitudes.reduce((a,b)=>a+b,0)/Math.max(magnitudes.length,1))/0.05,1);
+  const coverage = Math.min(event.signals.length/Math.max(signals.length,1),1);
+  const agreement = event.agreement;
+  const score = Math.round(coverage*25 + agreement*35 + intensity*25 + anomalyHits*15);
+  const level = score >= 75 ? "Muito relevante" : score >= 50 ? "Relevante" : "Comum";
+  return {score,level};
+}
+
+function renderEventScores(text) {
+  const list=document.querySelector("#eventScoreList");
+  const summary=document.querySelector("#eventScoreSummary");
+  if(!list || !summary) return;
+  const signals=parseAlignedSignals(text).filter(s=>s.values.filter(Number.isFinite).length>=4);
+  const events=detectSynchronizedEvents(text);
+  if(!signals.length || !events.length){
+    summary.innerHTML='<div class="relation-empty">Nenhum evento conjunto suficiente para pontuar.</div>';
+    list.innerHTML="";
+    return;
+  }
+  const scored=events.map(event=>({...event,...scoreEvent(event,signals)}));
+  const counts={
+    "Muito relevante":scored.filter(e=>e.level==="Muito relevante").length,
+    "Relevante":scored.filter(e=>e.level==="Relevante").length,
+    "Comum":scored.filter(e=>e.level==="Comum").length
+  };
+  summary.innerHTML=Object.entries(counts).map(([level,count])=>
+    `<div class="score-stat"><strong>${count}</strong><span>${level}</span></div>`
+  ).join("");
+  list.innerHTML=scored.slice(-10).reverse().map(event=>`
+    <div class="event-score-card">
+      <div><span class="eyebrow">PONTO ${event.index+1}</span><strong>${event.score}/100</strong></div>
+      <div><b>${event.level}</b><small>${event.direction} · ${event.signals.join(" · ")} · concordância ${Math.round(event.agreement*100)}%</small></div>
+    </div>
+  `).join("");
+}
+
 function renderEventTimeline(text) {
   const list=document.querySelector("#eventTimeline");
   const summary=document.querySelector("#eventTimelineSummary");
@@ -507,6 +555,7 @@ function process(text) {
     renderSynchronizedEvents(text);
     renderEventTimeline(text);
     renderEventInterpretation(text);
+    renderEventScores(text);
     statusEl.textContent="Análise concluída. Baseline temporal experimental.";
   } catch(error) {
     statusEl.textContent=error.message;
