@@ -1,13 +1,14 @@
 # AI 4D V2 — Web App
 
-Primeira interface utilizável do produto experimental AI 4D.
+Interface do produto experimental AI 4D para análise temporal de dados.
 
 ## Fluxo
 
-1. Carregar um CSV.
-2. Detectar a primeira coluna numérica.
-3. Calcular tendência recente e uma previsão baseline.
-4. Exibir métricas e gráfico temporal.
+1. Criar uma conta ou entrar.
+2. Carregar um CSV.
+3. Detectar sinais e calcular métricas temporais.
+4. Executar o baseline local ou usar a API para previsão ML.
+5. Sincronizar análises autenticadas com o histórico privado da conta.
 
 ## Formato
 
@@ -15,16 +16,21 @@ Primeira interface utilizável do produto experimental AI 4D.
 
 A V2 usa a primeira coluna numérica encontrada como sinal principal.
 
+## Autenticação
+
+O frontend usa o token Bearer retornado por `/auth/register` ou `/auth/login`. O token é mantido no armazenamento local do navegador para manter a sessão entre recarregamentos.
+
+A URL da API é configurável na interface e é salva localmente no navegador.
+
 ## Importante
 
-Esta versão usa um método estatístico simples e determinístico. Ela não representa um modelo de machine learning treinado nem deve ser usada para decisões críticas.
+Esta versão continua experimental. Os resultados não devem ser usados como decisões críticas. A API deve usar HTTPS e uma chave `AI4D_SECRET_KEY` forte em produção.
 
 ## Próximas evoluções
 
-- múltiplos sinais;
-- backend e API;
-- modelo de ML treinável;
-- detecção de anomalias;
-- autenticação e projetos;
-- persistência em banco de dados;
-- infraestrutura cloud.
+- experiência de conta mais completa;
+- projetos por usuário;
+- recuperação e reabertura de análises;
+- PostgreSQL e migrações de banco;
+- infraestrutura cloud;
+- modelo ML mais robusto e avaliação contínua.
