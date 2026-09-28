@@ -143,6 +143,36 @@ function parseAlignedSignals(text) {
   return headers.slice(1).map((name,offset)=>({name,values:rows.map(parts=>Number(parts[offset+1]))}));
 }
 
+function lagCorrelation(a,b,lag){
+  const x=[],y=[];
+  if(lag>=0){for(let i=lag;i<a.length;i++){if(Number.isFinite(a[i])&&Number.isFinite(b[i-lag])){x.push(a[i]);y.push(b[i-lag]);}}}
+  else {const k=-lag;for(let i=k;i<a.length;i++){if(Number.isFinite(a[i-k])&&Number.isFinite(b[i])){x.push(a[i]);y.push(b[i]);}}}
+  return x.length>=3?correlation(x,y):0;
+}
+function detectLagRelationships(text){
+  const signals=parseAlignedSignals(text), pairs=[];
+  for(let i=0;i<signals.length;i++) for(let j=i+1;j<signals.length;j++){
+    const a=signals[i].values,b=signals[j].values;
+    let best={r:-Infinity,lag:0,n:0};
+    for(let lag=-3;lag<=3;lag++){
+      const r=lagCorrelation(a,b,lag);
+      if(Math.abs(r)>Math.abs(best.r)) best={r,lag,n:Math.min(a.length,b.length)-Math.abs(lag)};
+    }
+    if(Number.isFinite(best.r)&&best.n>=3) pairs.push({a:signals[i].name,b:signals[j].name,...best});
+  }
+  return pairs;
+}
+function renderLagRelationships(text){
+  const el=document.querySelector("#lagList"); if(!el)return;
+  const pairs=detectLagRelationships(text);
+  if(!pairs.length){el.innerHTML='<div class="relation-empty">São necessários pelo menos dois sinais com dados alinhados.</div>';return;}
+  el.innerHTML=pairs.map(p=>{
+    const relation=p.r>0.1?"positiva":p.r<-0.1?"negativa":"próxima de zero";
+    const lag=p.lag===0?"sem atraso":p.lag>0?p.lag+" passo(s) de atraso no segundo sinal":Math.abs(p.lag)+" passo(s) de atraso no primeiro sinal";
+    return '<div class="lag-card"><span class="eyebrow">'+p.a+' × '+p.b+'</span><strong>r = '+p.r.toFixed(2)+'</strong><small>Relação '+relation+' · '+lag+' · '+p.n+' pontos</small></div>';
+  }).join("");
+}
+
 function renderRelationships(text) {
   const el=document.querySelector("#relationshipList");
   if(!el) return;
@@ -276,6 +306,7 @@ function process(text) {
     renderSignalSummary(comparison);
     drawMultiChart(comparison);
     renderRelationships(text);
+    renderLagRelationships(text);
     statusEl.textContent="Análise concluída. Baseline temporal experimental.";
   } catch(error) {
     statusEl.textContent=error.message;
