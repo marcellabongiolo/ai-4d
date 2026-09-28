@@ -55,6 +55,7 @@ function analyze(rows) {
     const relative = Math.abs(deviation) / Math.max(Math.abs(median), 1) * 100;
     return {
       index: i,
+      timestamp: rows[i]?.timestamp || String(i + 1),
       value: values[i],
       median,
       deviation,
@@ -136,6 +137,21 @@ function render(result, name, rows) {
     document.querySelector("#anomalyInsight").textContent =
       "Nenhuma anomalia foi detectada pelo baseline robusto nesta série.";
   }
+  const anomalyList = document.querySelector("#anomalyList");
+  if (anomalyList) {
+    if (!result.anomalyCount) {
+      anomalyList.innerHTML = '<div class="anomaly-empty">Nenhum evento fora do padrão local.</div>';
+    } else {
+      anomalyList.innerHTML = result.anomalyDetails.map(detail => {
+        const direction = detail.direction === "acima" ? "acima" : "abaixo";
+        return '<div class="anomaly-event"><span class="anomaly-dot"></span><div><strong>' +
+          detail.timestamp + '</strong><small>Valor ' + detail.value.toFixed(3) +
+          ' · ' + detail.relative.toFixed(1) + '% ' + direction +
+          ' da mediana local</small></div></div>';
+      }).join("");
+    }
+  }
+
   window.__rows = rows;
   window.__anomalies = result.anomalyIndexes;
 
