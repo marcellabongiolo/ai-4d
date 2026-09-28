@@ -25,10 +25,38 @@ function analyze(rows) {
   const prediction = values.at(-1) + avgDelta;
   const volatility = Math.sqrt(deltas.reduce((a,b)=>a+(b-avgDelta)**2,0)/Math.max(deltas.length,1));
   const scale = Math.max(Math.abs(values.at(-1)), 1);
-  return { current: values.at(-1), prediction, avgDelta, volatility, trend: Math.abs(avgDelta) < scale*0.01 ? "Estável" : avgDelta > 0 ? "Subindo" : "Caindo" };
+
+  // Robust anomaly detection using rolling median + MAD.
+  // This is an interpretable baseline, not a trained anomaly model.
+  const windowSize = Math.min(7, values.length);
+  const anomalies = [];
+  for (let i = 0; i < values.length; i++) {
+    const start = Math.max(0, i - windowSize + 1);
+    const window = values.slice(start, i + 1).filter(Number.isFinite);
+    if (window.length < 4) continue;
+    const sorted = [...window].sort((a,b) => a-b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 ? sorted[mid] : (sorted[mid-1] + sorted[mid]) / 2;
+    const deviations = sorted.map(v => Math.abs(v - median)).sort((a,b) => a-b);
+    const madMid = Math.floor(deviations.length / 2);
+    const mad = deviations.length % 2 ? deviations[madMid] : (deviations[madMid-1] + deviations[madMid]) / 2;
+    const robustZ = mad > 1e-9 ? Math.abs(values[i] - median) / (1.4826 * mad) : 0;
+    if (robustZ >= 3.5) anomalies.push(i);
+  }
+
+  return {
+    current: values.at(-1),
+    prediction,
+    avgDelta,
+    volatility,
+    trend: Math.abs(avgDelta) < scale*0.01 ? "Estável" : avgDelta > 0 ? "Subindo" : "Caindo",
+    anomalyIndexes: anomalies,
+    anomalyCount: anomalies.length,
+    latestAnomaly: anomalies.includes(values.length - 1)
+  };
 }
 
-function drawChart(rows) {
+function drawChart(rows, anomalyIndexes = []) {
   const canvas = document.querySelector("#chart");
   const ctx = canvas.getContext("2d");
   const dpr = window.devicePixelRatio || 1;
@@ -43,6 +71,17 @@ function drawChart(rows) {
   ctx.beginPath();
   values.forEach((v,i)=>{const x=pad.l+w*i/(values.length-1);const y=pad.t+h-(v-min)/Math.max(max-min,1e-9)*h;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
   ctx.stroke();
+
+  // Mark detected anomalies on the chart.
+  ctx.fillStyle = "#ff6b8a";
+  anomalyIndexes.forEach(i => {
+    const v = values[i];
+    const x = pad.l+w*i/(values.length-1);
+    const y = pad.t+h-(v-min)/Math.max(max-min,1e-9)*h;
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+  });
 }
 
 function render(result, name, rows) {
@@ -53,11 +92,22 @@ function render(result, name, rows) {
   document.querySelector("#prediction").textContent=result.prediction.toFixed(3);
   document.querySelector("#mae").textContent="—";
   document.querySelector("#rmse").textContent="—";
+  document.querySelector("#anomalies").textContent = result.anomalyCount;
   document.querySelector("#signalName").textContent=name;
+  const anomalyText = result.latestAnomaly
+    ? " O ponto mais recente foi identificado como uma possível anomalia."
+    : result.anomalyCount > 0
+      ? ` Foram encontrados ${result.anomalyCount} pontos fora do padrão local.`
+      : " Não foram encontrados pontos fora do padrão local.";
   document.querySelector("#insight").textContent = result.trend === "Estável"
-    ? "O sinal apresenta pouca variação recente."
-    : `O sinal está ${result.trend.toLowerCase()}; a mudança média recente é ${result.avgDelta.toFixed(3)} por ponto.`;
-  window.__rows = rows;\n  drawChart(rows);
+    ? "O sinal apresenta pouca variação recente." + anomalyText
+    : `O sinal está ${result.trend.toLowerCase()}; a mudança média recente é ${result.avgDelta.toFixed(3)} por ponto.` + anomalyText;
+  document.querySelector("#anomalyInsight").textContent = result.anomalyCount > 0
+    ? "As marcações no gráfico representam possíveis anomalias detectadas pelo baseline robusto."
+    : "Nenhuma anomalia foi detectada pelo baseline robusto nesta série.";
+  window.__rows = rows;
+  window.__anomalies = result.anomalyIndexes;
+  drawChart(rows, result.anomalyIndexes);
 }
 
 function process(text) {
@@ -81,7 +131,7 @@ sampleBtn.addEventListener("click", async () => {
   process(await response.text());
 });
 
-window.addEventListener("resize",()=>{ if(!dashboard.classList.contains("hidden")) drawChart(window.__rows || []); });
+window.addEventListener("resize",()=>{ if(!dashboard.classList.contains("hidden")) drawChart(window.__rows || [], window.__anomalies || []); });
 
 apiBtn.addEventListener("click", async () => {
   const file = input.files?.[0];
