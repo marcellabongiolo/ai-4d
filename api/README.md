@@ -26,6 +26,7 @@ Projects create a private workspace boundary for a user's analyses.
 - `DELETE /projects/{project_id}` deletes an owned project and unlinks its analyses without deleting those analyses.
 - `POST /sessions` accepts an optional `project_id`.
 - `GET /sessions?project_id=<id>` filters the authenticated user's history by project.
+- `GET /sessions/{session_id}` reopens a private analysis record and returns its stored dataset.
 
 A project ID belonging to another user cannot be attached to a session.
 
@@ -33,7 +34,7 @@ A project ID belonging to another user cannot be attached to a session.
 
 The `/sessions` endpoints require a Bearer token. Each analysis is stored with its `user_id`, and users can only list or delete their own analyses.
 
-The browser can keep a small local history for offline use. When an API is configured and the user is authenticated, the frontend can synchronize the latest analysis with the selected project.
+The browser can keep a small local history for offline use. When an API is configured and the user is authenticated, the frontend can synchronize the latest analysis with the selected project. Persisted analyses include the original CSV text so the frontend can re-run the analysis when the user chooses “Reabrir análise”. Treat uploaded datasets as user data and deploy the API/database with appropriate access controls and retention policies.
 
 ## Database migrations
 
