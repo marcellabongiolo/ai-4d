@@ -32,3 +32,4 @@ class AnalysisSession(Base):
     behavior: Mapped[str] = mapped_column(String(50), nullable=False)
     anomalies: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     signals_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    dataset_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
