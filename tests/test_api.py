@@ -56,3 +56,36 @@ def test_sessions_are_user_scoped():
 def test_register_validates_email_and_password():
     assert client.post("/auth/register",json={"email":"valid@example.com","password":"short"}).status_code==422
     assert client.post("/auth/register",json={"email":"not-an-email","password":"long-enough"}).status_code==422
+
+
+def test_projects_are_private_and_sessions_can_be_attached():
+    _,_,token1=make_user()
+    _,_,token2=make_user()
+    h1={"Authorization":f"Bearer {token1}"}
+    h2={"Authorization":f"Bearer {token2}"}
+
+    assert client.get("/projects").status_code==401
+
+    created=client.post("/projects",json={"name":"Projeto principal"},headers=h1)
+    assert created.status_code==201
+    project=created.json()
+    assert project["name"]=="Projeto principal"
+
+    assert client.get("/projects",headers=h1).json()[0]["id"]==project["id"]
+    assert client.get("/projects",headers=h2).json()==[]
+
+    payload={"project_id":project["id"],"signal":"signal_a","points":10,"current_value":19,
+             "prediction":20,"trend":"Subindo","behavior":"Estável","anomalies":0,
+             "signals":["signal_a"]}
+    attached=client.post("/sessions",json=payload,headers=h1)
+    assert attached.status_code==201
+    assert attached.json()["project_id"]==project["id"]
+
+    assert client.get(f"/sessions?project_id={project['id']}",headers=h1).status_code==200
+    assert client.get(f"/sessions?project_id={project['id']}",headers=h2).json()==[]
+    assert client.post("/sessions",json=payload,headers=h2).status_code==404
+    assert client.delete(f"/projects/{project['id']}",headers=h2).status_code==404
+
+    assert client.delete(f"/projects/{project['id']}",headers=h1).status_code==204
+    assert client.get(f"/sessions?project_id={project['id']}",headers=h1).json()==[]
+    assert client.get("/sessions",headers=h1).json()[0]["project_id"] is None
