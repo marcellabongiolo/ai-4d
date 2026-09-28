@@ -22,21 +22,33 @@ def make_windows(values: np.ndarray, lags: int) -> tuple[np.ndarray, np.ndarray]
     return X, values[lags:]
 
 def train(values: np.ndarray, lags: int = 3, test_ratio: float = 0.25) -> dict[str, float]:
-    X, y = make_windows(values, lags)
+    candidates = sorted({1, 3, 5, lags})
+    results = []
+    for candidate_lags in candidates:
+        if len(values) <= candidate_lags + 2:
+            continue
+        X, y = make_windows(values, candidate_lags)
+        split = min(max(1, int(len(X) * (1 - test_ratio))), len(X) - 1)
+        model = LinearRegression().fit(X[:split], y[:split])
+        predictions = model.predict(X[split:])
+        model_mae = mean_absolute_error(y[split:], predictions)
+        naive_predictions = X[split:, -1]
+        naive_mae = mean_absolute_error(y[split:], naive_predictions)
+        if model_mae <= naive_mae:
+            results.append((model_mae, float(np.sqrt(mean_squared_error(y[split:], predictions))), "linear-regression-lag", candidate_lags))
+        else:
+            results.append((naive_mae, float(np.sqrt(mean_squared_error(y[split:], naive_predictions))), "persistence-baseline", candidate_lags))
+    if not results:
+        raise ValueError("Not enough observations for model selection.")
+    mae, rmse, model_name, selected_lags = min(results, key=lambda item: (item[0], item[1]))
+    X, y = make_windows(values, selected_lags)
     split = min(max(1, int(len(X) * (1 - test_ratio))), len(X) - 1)
-    model = LinearRegression().fit(X[:split], y[:split])
-    predictions = model.predict(X[split:])
-
-    # Compare against a persistence baseline: predict the next value as the last observed value.
-    naive_predictions = X[split:, -1]
-    model_mae = mean_absolute_error(y[split:], predictions)
-    naive_mae = mean_absolute_error(y[split:], naive_predictions)
-    use_model = model_mae <= naive_mae
-    selected_predictions = predictions if use_model else naive_predictions
-    mae = mean_absolute_error(y[split:], selected_predictions)
-    rmse = float(np.sqrt(mean_squared_error(y[split:], selected_predictions)))
-    next_prediction = float(model.predict(values[-lags:].reshape(1, -1))[0]) if use_model else float(values[-1])
-    return {"mae": float(mae), "rmse": rmse, "train_samples": float(split), "test_samples": float(len(y) - split), "next_prediction": next_prediction, "model": "linear-regression-lag" if use_model else "persistence-baseline"}
+    if model_name == "linear-regression-lag":
+        model = LinearRegression().fit(X[:split], y[:split])
+        next_prediction = float(model.predict(values[-selected_lags:].reshape(1, -1))[0])
+    else:
+        next_prediction = float(values[-1])
+    return {"mae": float(mae), "rmse": float(rmse), "train_samples": float(split), "test_samples": float(len(y) - split), "next_prediction": next_prediction, "model": model_name, "lags": float(selected_lags)}
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train the AI 4D temporal baseline.")
