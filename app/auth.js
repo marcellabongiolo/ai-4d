@@ -10,11 +10,14 @@ function setAuthSession(data){
   localStorage.setItem(AI4D_TOKEN_KEY,data.access_token);
   localStorage.setItem(AI4D_USER_KEY,String(data.user_id));
   updateAuthUI();
+  window.dispatchEvent(new Event("ai4d-auth-changed"));
 }
 function clearAuthSession(){
   localStorage.removeItem(AI4D_TOKEN_KEY);
   localStorage.removeItem(AI4D_USER_KEY);
+  localStorage.removeItem("ai4d_project_id");
   updateAuthUI();
+  window.dispatchEvent(new Event("ai4d-auth-changed"));
 }
 function updateAuthUI(){
   const token=getAuthToken();
