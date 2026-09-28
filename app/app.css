@@ -37,3 +37,7 @@
 .lag-card{border:1px solid var(--line);padding:14px;background:rgba(255,255,255,.025)}
 .lag-card strong{display:block;font-size:22px;margin:7px 0}
 .lag-card small{display:block;color:var(--muted);font:10px "DM Mono";line-height:1.5}
+
+.network-panel{margin-top:24px;padding-top:24px;border-top:1px solid var(--line)}
+.network-panel h2{margin-top:7px}
+#networkChart{height:360px;margin-top:8px}
