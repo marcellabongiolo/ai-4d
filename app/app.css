@@ -15,3 +15,9 @@
 .anomaly-event strong{display:block;font:12px "DM Mono";letter-spacing:.02em}
 .anomaly-event small{display:block;color:var(--muted);margin-top:3px;line-height:1.4}
 .anomaly-empty{color:var(--muted);font-size:13px;padding-top:10px}
+
+.signal-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:14px}
+.signal-card{border:1px solid var(--line);padding:12px;background:rgba(255,255,255,.025)}
+.signal-card strong{display:block;margin:6px 0;font-size:15px}
+.signal-card small{color:var(--muted);font:10px "DM Mono"}
+#multiChart{height:300px;margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
