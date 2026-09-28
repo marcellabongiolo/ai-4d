@@ -296,6 +296,64 @@ function renderSynchronizedEvents(text) {
   `).join("");
 }
 
+function buildEventTimeline(text) {
+  const signals = parseAlignedSignals(text).filter(s => s.values.filter(Number.isFinite).length >= 4);
+  if (!signals.length) return [];
+
+  const rows = Math.min(...signals.map(s => s.values.length));
+  const points = [];
+  for (let i = 1; i < rows; i++) {
+    let moving = 0, up = 0, down = 0, anomaly = false;
+    signals.forEach(s => {
+      const prev=s.values[i-1], curr=s.values[i];
+      if (!Number.isFinite(prev) || !Number.isFinite(curr)) return;
+      const delta=curr-prev, scale=Math.max(Math.abs(prev),1);
+      if (Math.abs(delta) >= scale*0.005) {
+        moving++;
+        delta>0 ? up++ : down++;
+      }
+    });
+    if (!moving) continue;
+    const majority=Math.max(up,down);
+    const syncRatio=majority/moving;
+    const sync = moving >= 2 && syncRatio >= .66;
+    points.push({index:i, moving, up, down, sync, syncRatio});
+  }
+  return points;
+}
+
+function renderEventTimeline(text) {
+  const list=document.querySelector("#eventTimeline");
+  const summary=document.querySelector("#eventTimelineSummary");
+  if(!list || !summary) return;
+
+  const points=buildEventTimeline(text);
+  const sync=points.filter(p=>p.sync);
+  const rising=points.filter(p=>p.up>p.down);
+  const falling=points.filter(p=>p.down>p.up);
+
+  summary.innerHTML=`
+    <div class="timeline-stat"><strong>${points.length}</strong><span>mudanças detectadas</span></div>
+    <div class="timeline-stat"><strong>${sync.length}</strong><span>pontos sincronizados</span></div>
+    <div class="timeline-stat"><strong>${rising.length}</strong><span>movimentos de alta</span></div>
+    <div class="timeline-stat"><strong>${falling.length}</strong><span>movimentos de queda</span></div>
+  `;
+
+  if(!points.length){
+    list.innerHTML='<div class="relation-empty">Não há mudanças suficientes para construir a linha do tempo.</div>';
+    return;
+  }
+
+  list.innerHTML=points.slice(-30).map((p,idx)=>{
+    const type=p.sync ? "Evento conjunto" : p.up>p.down ? "Movimento de alta" : p.down>p.up ? "Movimento de queda" : "Mudança";
+    const detail=p.sync ? `Concordância ${Math.round(p.syncRatio*100)}% · ${p.moving} sinais` : `${p.moving} sinal(is) em movimento`;
+    return `<div class="event-timeline-item ${p.sync ? "sync" : ""}">
+      <span>${String(idx+1).padStart(2,"0")}</span>
+      <div><strong>${type}</strong><small>Ponto ${p.index+1} · ${detail}</small></div>
+    </div>`;
+  }).join("");
+}
+
 function renderSignalSummary(comparison) {
   const el=document.querySelector("#signalSummary");
   if(!el) return;
@@ -412,6 +470,7 @@ function process(text) {
     renderLagRelationships(text);
     drawSignalNetwork(text);
     renderSynchronizedEvents(text);
+    renderEventTimeline(text);
     statusEl.textContent="Análise concluída. Baseline temporal experimental.";
   } catch(error) {
     statusEl.textContent=error.message;
