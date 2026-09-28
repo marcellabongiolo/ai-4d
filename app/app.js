@@ -105,6 +105,7 @@ function render(result, name, rows) {
   document.querySelector("#points").textContent=rows.length;
   document.querySelector("#current").textContent=result.current.toFixed(3);
   document.querySelector("#trend").textContent=result.trend;
+  document.querySelector("#behavior").textContent=result.behavior;
   document.querySelector("#prediction").textContent=result.prediction.toFixed(3);
   document.querySelector("#mae").textContent="—";
   document.querySelector("#rmse").textContent="—";
