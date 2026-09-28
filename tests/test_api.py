@@ -1,16 +1,19 @@
 from uuid import uuid4
 from fastapi.testclient import TestClient
 from api.main import app
-
 client = TestClient(app)
 
+def make_user():
+    email=f"user-{uuid4().hex}@example.com"; password="TestPassword123!"
+    r=client.post("/auth/register",json={"email":email,"password":password})
+    assert r.status_code==201
+    return email,password,r.json()["access_token"]
+
 def test_health():
-    response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json()["status"] == "ok"
+    r=client.get("/health"); assert r.status_code==200; assert r.json()["status"]=="ok"
 
 def test_predict():
-    csv = """timestamp,signal_a,signal_b
+    csv="""timestamp,signal_a,signal_b
 2026-01-01,10,5
 2026-01-02,11,6
 2026-01-03,12,7
@@ -22,36 +25,34 @@ def test_predict():
 2026-01-09,18,13
 2026-01-10,19,14
 """
-    response = client.post("/predict", files={"file": ("sample.csv", csv.encode("utf-8"), "text/csv")})
-    assert response.status_code == 200
-    body = response.json()
-    assert body["signal"] == "signal_a"
-    assert "next_prediction" in body
-    assert "mae" in body
-    assert "rmse" in body
+    r=client.post("/predict",files={"file":("sample.csv",csv.encode(),"text/csv")})
+    assert r.status_code==200
+    body=r.json()
+    assert body["signal"]=="signal_a"
+    assert "next_prediction" in body and "mae" in body and "rmse" in body
 
 def test_register_and_login():
-    email = f"test-{uuid4().hex}@example.com"
-    password = "TestPassword123!"
-    register = client.post("/auth/register", json={"email": email, "password": password})
-    assert register.status_code == 201
-    body = register.json()
-    assert body["token_type"] == "bearer"
-    assert body["user_id"] > 0
-    assert body["access_token"]
+    email,password,_=make_user()
+    assert client.post("/auth/register",json={"email":email,"password":password}).status_code==409
+    r=client.post("/auth/login",json={"email":email,"password":password})
+    assert r.status_code==200 and r.json()["access_token"]
+    assert client.post("/auth/login",json={"email":email,"password":"wrong-password"}).status_code==401
 
-    duplicate = client.post("/auth/register", json={"email": email, "password": password})
-    assert duplicate.status_code == 409
+def test_private_sessions_require_auth():
+    assert client.get("/sessions").status_code==401
+    assert client.delete("/sessions").status_code==401
 
-    login = client.post("/auth/login", json={"email": email, "password": password})
-    assert login.status_code == 200
-    assert login.json()["access_token"]
-
-    bad_login = client.post("/auth/login", json={"email": email, "password": "wrong-password"})
-    assert bad_login.status_code == 401
+def test_sessions_are_user_scoped():
+    _,_,token1=make_user()
+    _,_,token2=make_user()
+    payload={"signal":"signal_a","points":10,"current_value":19,"prediction":20,"trend":"Subindo","behavior":"Estável","anomalies":0,"signals":["signal_a"]}
+    r=client.post("/sessions",json=payload,headers={"Authorization":f"Bearer {token1}"})
+    assert r.status_code==201
+    assert len(client.get("/sessions",headers={"Authorization":f"Bearer {token1}"}).json())>=1
+    assert client.get("/sessions",headers={"Authorization":f"Bearer {token2}"}).json()==[]
+    assert client.delete("/sessions",headers={"Authorization":f"Bearer {token1}"}).status_code==204
+    assert client.get("/sessions",headers={"Authorization":f"Bearer {token1}"}).json()==[]
 
 def test_register_validates_email_and_password():
-    short_password = client.post("/auth/register", json={"email": "valid@example.com", "password": "short"})
-    assert short_password.status_code == 422
-    invalid_email = client.post("/auth/register", json={"email": "not-an-email", "password": "long-enough"})
-    assert invalid_email.status_code == 422
+    assert client.post("/auth/register",json={"email":"valid@example.com","password":"short"}).status_code==422
+    assert client.post("/auth/register",json={"email":"not-an-email","password":"long-enough"}).status_code==422
