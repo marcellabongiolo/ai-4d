@@ -98,3 +98,16 @@
 .alert-icon{width:25px;height:25px;border:1px solid var(--line);display:grid;place-items:center;font:12px "DM Mono";color:var(--accent2)}
 .event-alert-card strong{display:block;font-size:13px;line-height:1.4}.event-alert-card small{display:block;color:var(--muted);font:10px "DM Mono";margin-top:5px}
 @media(max-width:520px){.alert-summary{grid-template-columns:1fr}}
+
+.history-panel{margin-top:24px;padding-top:24px;border-top:1px solid var(--line)}
+.history-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.history-stat{border:1px solid var(--line);padding:14px;background:rgba(255,255,255,.025)}
+.history-stat span{display:block;color:var(--muted);font:10px "DM Mono";text-transform:uppercase;letter-spacing:.06em}
+.history-stat strong{display:block;font-size:18px;margin-top:9px}
+.history-stat small{display:block;color:var(--accent2);font:10px "DM Mono";margin-top:6px}
+.history-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.history-window{border:1px solid var(--line);padding:14px;background:rgba(255,255,255,.025)}
+.history-window strong{display:block;font-size:18px;margin-top:7px}
+.history-window small{display:block;color:var(--muted);font:10px "DM Mono";margin-top:5px}
+@media(max-width:900px){.history-summary{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.history-summary,.history-list{grid-template-columns:1fr}}
