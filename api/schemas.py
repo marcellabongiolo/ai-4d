@@ -20,6 +20,7 @@ class SessionCreate(BaseModel):
     behavior: str = Field(min_length=1, max_length=50)
     anomalies: int = Field(ge=0)
     signals: list[str] = Field(default_factory=list)
+    dataset_text: str = Field(default="", max_length=2_000_000)
 
 class SessionResponse(SessionCreate):
     model_config = ConfigDict(from_attributes=True)
