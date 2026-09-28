@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>AI 4D — Data Intelligence</title>
   <link rel="stylesheet" href="app.css">
-<meta name="description" content="AI 4D V2 — análise temporal experimental de dados.">
+  <meta name="description" content="AI 4D V2 — análise temporal experimental de dados.">
 </head>
 <body>
   <main class="app-shell">
@@ -20,15 +20,22 @@
         <input id="csvInput" type="file" accept=".csv,text/csv">
         <button id="sampleBtn" class="button">Usar dados de exemplo</button>
       </div>
-      <p id="status" class="status">Aguardando dados.</p><div class="api-row"><label for="apiUrl">API local (opcional)</label><input id="apiUrl" type="url" placeholder="http://localhost:8000"><button id="apiBtn" class="button ghost">Usar ML da API</button></div>
+      <p id="status" class="status">Aguardando dados.</p>
+      <div class="api-row"><label for="apiUrl">API local (opcional)</label><input id="apiUrl" type="url" placeholder="http://localhost:8000"><button id="apiBtn" class="button ghost">Usar ML da API</button></div>
     </section>
 
     <section id="dashboard" class="dashboard hidden">
       <div class="metrics">
         <article class="metric"><span>Pontos</span><strong id="points">—</strong></article>
         <article class="metric"><span>Valor atual</span><strong id="current">—</strong></article>
-        <article class="metric"><span>Tendência</span><strong id="trend">—</strong></article><article class="metric"><span>Comportamento</span><strong id="behavior">—</strong></article>
-        <article class="metric"><span>Próxima previsão</span><strong id="prediction">—</strong></article><article class="metric"><span>Anomalias</span><strong id="anomalies">—</strong></article><article class="metric"><span>MAE (ML)</span><strong id="mae">—</strong></article><article class="metric"><span>RMSE (ML)</span><strong id="rmse">—</strong></article><article class="metric"><span>Modelo</span><strong id="model">—</strong></article><article class="metric"><span>Lags</span><strong id="lags">—</strong></article>
+        <article class="metric"><span>Tendência</span><strong id="trend">—</strong></article>
+        <article class="metric"><span>Comportamento</span><strong id="behavior">—</strong></article>
+        <article class="metric"><span>Próxima previsão</span><strong id="prediction">—</strong></article>
+        <article class="metric"><span>Anomalias</span><strong id="anomalies">—</strong></article>
+        <article class="metric"><span>MAE (ML)</span><strong id="mae">—</strong></article>
+        <article class="metric"><span>RMSE (ML)</span><strong id="rmse">—</strong></article>
+        <article class="metric"><span>Modelo</span><strong id="model">—</strong></article>
+        <article class="metric"><span>Lags</span><strong id="lags">—</strong></article>
       </div>
 
       <div class="panel">
@@ -36,12 +43,37 @@
         <canvas id="chart" width="1100" height="420"></canvas>
         <div id="signalSummary" class="signal-summary"></div>
         <canvas id="multiChart" width="1100" height="300"></canvas>
-        <div class="relationships"><div class="panel-heading relation-heading"><div><span class="eyebrow">RELAÇÕES</span><h2>Como os sinais se movem juntos</h2></div><span class="badge">Correlação</span></div><p class="relation-note">A correlação descreve associação estatística entre sinais alinhados. Ela não demonstra causa e efeito.</p><div id="relationshipList" class="relationship-list"></div></div>
+
+        <div class="relationships">
+          <div class="panel-heading relation-heading"><div><span class="eyebrow">RELAÇÕES</span><h2>Como os sinais se movem juntos</h2></div><span class="badge">Correlação</span></div>
+          <p class="relation-note">A correlação descreve associação estatística entre sinais alinhados. Ela não demonstra causa e efeito.</p>
+          <div id="relationshipList" class="relationship-list"></div>
+        </div>
+
+        <div class="lag-panel">
+          <div class="panel-heading relation-heading"><div><span class="eyebrow">MOVIMENTO TEMPORAL</span><h2>Quando um sinal se move em relação ao outro</h2></div><span class="badge">Lag</span></div>
+          <p class="relation-note">O lag indica um deslocamento temporal que maximiza a associação observada. É uma medida exploratória, não uma prova de causalidade.</p>
+          <div id="lagList" class="lag-list"></div>
+        </div>
+
+        <div class="network-panel">
+          <div class="panel-heading relation-heading"><div><span class="eyebrow">MAPA DE RELAÇÕES</span><h2>Rede dos sinais</h2></div><span class="badge">Grafo experimental</span></div>
+          <p class="relation-note">Cada nó representa um sinal. As conexões mostram associações estatísticas; espessura maior significa maior correlação absoluta.</p>
+          <canvas id="networkChart" width="1100" height="360"></canvas>
+        </div>
+
+        <div class="sync-panel">
+          <div class="panel-heading relation-heading"><div><span class="eyebrow">EVENTOS SINCRONIZADOS</span><h2>Mudanças que acontecem juntas</h2></div><span class="badge">Experimental</span></div>
+          <p class="relation-note">O AI 4D procura pontos em que vários sinais mudam de direção na mesma janela temporal. Isso ajuda a encontrar eventos conjuntos, sem afirmar que um sinal causa o outro.</p>
+          <div id="syncSummary" class="sync-summary"></div>
+          <div id="syncList" class="sync-list"></div>
+        </div>
       </div>
 
       <div class="insights">
         <article class="panel"><span class="eyebrow">SINAL</span><h2>O que encontramos</h2><p id="insight">—</p></article>
-        <article class="panel"><span class="eyebrow">ANOMALIAS</span><h2>Detecção de desvios</h2><p id="anomalyInsight">Aguardando análise.</p><div id="anomalyTimeline" class="anomaly-timeline"><div class="timeline-step"><span>01</span><strong>Normal</strong><small>O sinal segue o padrão local.</small></div><div class="timeline-step"><span>02</span><strong>Mudança</strong><small>O comportamento começa a se afastar.</small></div><div class="timeline-step"><span>03</span><strong>Anomalia</strong><small>O desvio ultrapassa o limite estatístico.</small></div><div class="timeline-step"><span>04</span><strong>Impacto</strong><small>O sistema estima a direção do desvio.</small></div></div><div id="anomalyList" class="anomaly-list"></div></article><article class="panel"><span class="eyebrow">PRÓXIMO PASSO</span><h2>Interpretação</h2><p id="nextStep">Este resultado é experimental e serve como baseline, não como garantia de previsão.</p></article>
+        <article class="panel"><span class="eyebrow">ANOMALIAS</span><h2>Detecção de desvios</h2><p id="anomalyInsight">Aguardando análise.</p><div id="anomalyTimeline" class="anomaly-timeline"><div class="timeline-step"><span>01</span><strong>Normal</strong><small>O sinal segue o padrão local.</small></div><div class="timeline-step"><span>02</span><strong>Mudança</strong><small>O comportamento começa a se afastar.</small></div><div class="timeline-step"><span>03</span><strong>Anomalia</strong><small>O desvio ultrapassa o limite estatístico.</small></div><div class="timeline-step"><span>04</span><strong>Impacto</strong><small>O sistema estima a direção do desvio.</small></div></div><div id="anomalyList" class="anomaly-list"></div></article>
+        <article class="panel"><span class="eyebrow">PRÓXIMO PASSO</span><h2>Interpretação</h2><p id="nextStep">Este resultado é experimental e serve como baseline, não como garantia de previsão.</p></article>
       </div>
     </section>
   </main>
