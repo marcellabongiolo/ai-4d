@@ -111,3 +111,15 @@
 .history-window small{display:block;color:var(--muted);font:10px "DM Mono";margin-top:5px}
 @media(max-width:900px){.history-summary{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.history-summary,.history-list{grid-template-columns:1fr}}
+
+.sessions-panel{margin-top:24px;padding-top:24px;border-top:1px solid var(--line)}
+.session-summary{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin:12px 0}
+.session-stat{border:1px solid var(--line);padding:14px;background:rgba(255,255,255,.025)}
+.session-stat strong{display:block;font-size:24px}.session-stat span{display:block;color:var(--muted);font:10px "DM Mono";margin-top:5px}
+.session-summary .button{min-height:100%}
+.session-list{display:grid;gap:8px}
+.session-card{display:flex;justify-content:space-between;gap:18px;align-items:center;border:1px solid var(--line);padding:14px;background:rgba(255,255,255,.025)}
+.session-card strong{display:block;font-size:16px;margin-top:6px}.session-card small{display:block;color:var(--muted);font:10px "DM Mono";margin-top:6px}
+.session-metrics{text-align:right}.session-metrics b{display:block;font-size:13px}.session-metrics span{display:block;color:var(--muted);font:10px "DM Mono";margin-top:6px}
+@media(max-width:700px){.session-summary{grid-template-columns:1fr 1fr}.session-summary .button{grid-column:1/-1}.session-card{display:block}.session-metrics{text-align:left;margin-top:12px}}
+@media(max-width:520px){.session-summary{grid-template-columns:1fr}}
