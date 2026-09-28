@@ -743,7 +743,7 @@ function renderSavedSessions() {
   if (!sessions.length) { list.innerHTML = '<div class="relation-empty">Nenhuma análise salva neste navegador.</div>'; return; }
   list.innerHTML = sessions.map((session, index) => {
     const date = new Date(session.createdAt).toLocaleString("pt-BR");
-    return '<div class="session-card"><div><span class="eyebrow">ANÁLISE ' + String(index + 1).padStart(2, "0") + '</span><strong>' + session.signal + '</strong><small>' + date + " · " + session.points + " pontos · " + session.signals.length + ' sinal(is)</small></div><div class="session-metrics"><b>' + session.trend + '</b><span>' + session.anomalies + " anomalia(s) · previsão " + Number(session.prediction).toFixed(2) + '</span></div></div>';
+    return '<div class="session-card"><div><span class="eyebrow">ANÁLISE ' + String(index + 1).padStart(2, "0") + '</span><strong>' + session.signal + '</strong><small>' + date + " · " + session.points + " pontos · " + session.signals.length + ' sinal(is)</small></div><div class="session-metrics"><b>' + session.trend + '</b><span>' + session.anomalies + " anomalia(s) · previsão " + Number(session.prediction).toFixed(2) + '</span></div><button class="button ghost reopen-session" data-session-id="' + session.id + '">Reabrir análise</button></div>';
   }).join("");
   bindReopenButtons();
 }
