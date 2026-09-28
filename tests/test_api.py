@@ -45,7 +45,7 @@ def test_private_sessions_require_auth():
 def test_sessions_are_user_scoped():
     _,_,token1=make_user()
     _,_,token2=make_user()
-    payload={"signal":"signal_a","points":10,"current_value":19,"prediction":20,"trend":"Subindo","behavior":"Estável","anomalies":0,"signals":["signal_a"]}
+    payload={"signal":"signal_a","points":10,"current_value":19,"prediction":20,"trend":"Subindo","behavior":"Estável","anomalies":0,"signals":["signal_a"],"dataset_text":"timestamp,signal_a\n2026-01-01,10\n2026-01-02,11\n2026-01-03,12"}
     r=client.post("/sessions",json=payload,headers={"Authorization":f"Bearer {token1}"})
     assert r.status_code==201
     assert len(client.get("/sessions",headers={"Authorization":f"Bearer {token1}"}).json())>=1
@@ -89,3 +89,28 @@ def test_projects_are_private_and_sessions_can_be_attached():
     assert client.delete(f"/projects/{project['id']}",headers=h1).status_code==204
     assert client.get(f"/sessions?project_id={project['id']}",headers=h1).json()==[]
     assert client.get("/sessions",headers=h1).json()[0]["project_id"] is None
+
+
+def test_session_can_be_reopened_with_dataset():
+    _,_,token=make_user()
+    headers={"Authorization":f"Bearer {token}"}
+    payload={"signal":"signal_a","points":3,"current_value":12,"prediction":13,
+             "trend":"Subindo","behavior":"Estável","anomalies":0,
+             "signals":["signal_a"],
+             "dataset_text":"timestamp,signal_a\n2026-01-01,10\n2026-01-02,11\n2026-01-03,12"}
+    created=client.post("/sessions",json=payload,headers=headers)
+    assert created.status_code==201
+    session_id=created.json()["id"]
+    reopened=client.get(f"/sessions/{session_id}",headers=headers)
+    assert reopened.status_code==200
+    assert reopened.json()["dataset_text"]==payload["dataset_text"]
+
+def test_session_reopen_is_private():
+    _,_,token1=make_user()
+    _,_,token2=make_user()
+    payload={"signal":"signal_a","points":3,"current_value":12,"prediction":13,
+             "trend":"Subindo","behavior":"Estável","anomalies":0,
+             "signals":["signal_a"],"dataset_text":"timestamp,signal_a\n2026-01-01,10\n2026-01-02,11\n2026-01-03,12"}
+    created=client.post("/sessions",json=payload,headers={"Authorization":f"Bearer {token1}"})
+    session_id=created.json()["id"]
+    assert client.get(f"/sessions/{session_id}",headers={"Authorization":f"Bearer {token2}"}).status_code==404
