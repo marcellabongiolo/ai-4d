@@ -44,6 +44,27 @@ function analyze(rows) {
     if (robustZ >= 3.5) anomalies.push(i);
   }
 
+  const anomalyDetails = anomalies.map(i => {
+    const start = Math.max(0, i - windowSize + 1);
+    const window = values.slice(start, i + 1);
+    const sorted = [...window].sort((a,b) => a-b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 ? sorted[mid] : (sorted[mid-1] + sorted[mid]) / 2;
+    const deviation = values[i] - median;
+    const direction = deviation > 0 ? "acima" : "abaixo";
+    const relative = Math.abs(deviation) / Math.max(Math.abs(median), 1) * 100;
+    return {
+      index: i,
+      value: values[i],
+      median,
+      deviation,
+      direction,
+      relative
+    };
+  });
+
+  const latestDetail = anomalyDetails.at(-1) || null;
+
   return {
     current: values.at(-1),
     prediction,
@@ -51,8 +72,10 @@ function analyze(rows) {
     volatility,
     trend: Math.abs(avgDelta) < scale*0.01 ? "Estável" : avgDelta > 0 ? "Subindo" : "Caindo",
     anomalyIndexes: anomalies,
+    anomalyDetails,
     anomalyCount: anomalies.length,
-    latestAnomaly: anomalies.includes(values.length - 1)
+    latestAnomaly: anomalies.includes(values.length - 1),
+    latestDetail
   };
 }
 
@@ -102,9 +125,17 @@ function render(result, name, rows) {
   document.querySelector("#insight").textContent = result.trend === "Estável"
     ? "O sinal apresenta pouca variação recente." + anomalyText
     : `O sinal está ${result.trend.toLowerCase()}; a mudança média recente é ${result.avgDelta.toFixed(3)} por ponto.` + anomalyText;
-  document.querySelector("#anomalyInsight").textContent = result.anomalyCount > 0
-    ? "As marcações no gráfico representam possíveis anomalias detectadas pelo baseline robusto."
-    : "Nenhuma anomalia foi detectada pelo baseline robusto nesta série.";
+  if (result.anomalyCount > 0) {
+    const detail = result.latestDetail;
+    const detailText = detail
+      ? `O ponto ${detail.index + 1} tem valor ${detail.value.toFixed(3)}, cerca de ${detail.relative.toFixed(1)}% ${detail.direction} da mediana local (${detail.median.toFixed(3)}).`
+      : "Existem pontos fora do padrão local.";
+    document.querySelector("#anomalyInsight").textContent =
+      detailText + " As marcações no gráfico representam possíveis desvios detectados pelo baseline robusto.";
+  } else {
+    document.querySelector("#anomalyInsight").textContent =
+      "Nenhuma anomalia foi detectada pelo baseline robusto nesta série.";
+  }
   window.__rows = rows;
   window.__anomalies = result.anomalyIndexes;
   drawChart(rows, result.anomalyIndexes);
