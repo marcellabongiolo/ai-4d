@@ -40,31 +40,45 @@ async def predict(file: UploadFile = File(...)) -> dict[str, object]:
         values = np.asarray(data[numeric_column], dtype=float)
         if len(values) < 8:
             raise ValueError("At least 8 observations are required.")
-        lags = 3
-        X = np.array([values[i-lags:i] for i in range(lags, len(values))])
-        y = values[lags:]
-        split = min(max(1, int(len(X) * 0.75)), len(X) - 1)
-        model = LinearRegression().fit(X[:split], y[:split])
-        test_predictions = model.predict(X[split:])
-        naive_predictions = X[split:, -1]
+        candidates = [1, 3, 5]
+        candidates = [lag for lag in candidates if len(values) > lag + 2]
+        if not candidates:
+            raise ValueError("Not enough observations for model selection.")
 
-        model_mae = mean_absolute_error(y[split:], test_predictions)
-        naive_mae = mean_absolute_error(y[split:], naive_predictions)
-        use_model = model_mae <= naive_mae
-        selected_predictions = test_predictions if use_model else naive_predictions
-        next_prediction = (
-            float(model.predict(values[-lags:].reshape(1, -1))[0])
-            if use_model else float(values[-1])
-        )
+        results = []
+        for lags in candidates:
+            X = np.array([values[i-lags:i] for i in range(lags, len(values))])
+            y = values[lags:]
+            split = min(max(1, int(len(X) * 0.75)), len(X) - 1)
+            model = LinearRegression().fit(X[:split], y[:split])
+            test_predictions = model.predict(X[split:])
+            naive_predictions = X[split:, -1]
+            model_mae = mean_absolute_error(y[split:], test_predictions)
+            naive_mae = mean_absolute_error(y[split:], naive_predictions)
+            if model_mae <= naive_mae:
+                results.append((model_mae, float(np.sqrt(mean_squared_error(y[split:], test_predictions))), "linear-regression-lag", lags))
+            else:
+                results.append((naive_mae, float(np.sqrt(mean_squared_error(y[split:], naive_predictions))), "persistence-baseline", lags))
+
+        mae, rmse, selected_model, selected_lags = min(results, key=lambda item: (item[0], item[1]))
+        X = np.array([values[i-selected_lags:i] for i in range(selected_lags, len(values))])
+        y = values[selected_lags:]
+        split = min(max(1, int(len(X) * 0.75)), len(X) - 1)
+        if selected_model == "linear-regression-lag":
+            model = LinearRegression().fit(X[:split], y[:split])
+            next_prediction = float(model.predict(values[-selected_lags:].reshape(1, -1))[0])
+        else:
+            next_prediction = float(values[-1])
         return {
             "signal": numeric_column,
             "current": float(values[-1]),
             "next_prediction": next_prediction,
-            "mae": float(mean_absolute_error(y[split:], selected_predictions)),
-            "rmse": float(np.sqrt(mean_squared_error(y[split:], selected_predictions))),
+            "mae": float(mae),
+            "rmse": float(rmse),
             "train_samples": int(split),
             "test_samples": int(len(y) - split),
-            "model": "linear-regression-lag" if use_model else "persistence-baseline",
+            "model": selected_model,
+            "lags": int(selected_lags),
         }
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
