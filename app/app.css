@@ -71,3 +71,8 @@
 .event-timeline-item small{display:block;color:var(--muted);font:10px "DM Mono";margin-top:4px;line-height:1.4}
 @media(max-width:800px){.timeline-summary{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.timeline-summary{grid-template-columns:1fr}}
+
+.interpretation-panel{margin-top:24px;padding-top:24px;border-top:1px solid var(--line)}
+.interpretation-lead{font-size:19px;line-height:1.55;color:var(--text);max-width:850px}
+.interpretation-list{display:grid;gap:8px;margin:16px 0 0;padding:0;list-style:none}
+.interpretation-list li{border-left:2px solid var(--accent);padding:11px 14px;background:rgba(124,140,255,.045);color:var(--muted);font:11px "DM Mono";line-height:1.55}
