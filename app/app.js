@@ -138,6 +138,21 @@ function render(result, name, rows) {
   }
   window.__rows = rows;
   window.__anomalies = result.anomalyIndexes;
+
+  const timeline = document.querySelector("#anomalyTimeline");
+  if (timeline) {
+    const steps = timeline.querySelectorAll(".timeline-step");
+    steps.forEach(step => step.classList.remove("active"));
+    if (result.anomalyCount === 0) {
+      steps[0]?.classList.add("active");
+    } else {
+      steps[0]?.classList.add("active");
+      steps[1]?.classList.add("active");
+      steps[2]?.classList.add("active");
+      steps[3]?.classList.add("active");
+    }
+  }
+
   drawChart(rows, result.anomalyIndexes);
 }
 
@@ -184,3 +199,4 @@ apiBtn.addEventListener("click", async () => {
     statusEl.textContent = "Não foi possível conectar à API: " + error.message;
   }
 });
+
