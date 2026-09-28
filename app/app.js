@@ -219,6 +219,83 @@ function renderRelationships(text) {
   }).join("");
 }
 
+function detectSynchronizedEvents(text) {
+  const signals = parseAlignedSignals(text).filter(s => s.values.filter(Number.isFinite).length >= 4);
+  if (signals.length < 2) return [];
+
+  const rows = Math.min(...signals.map(s => s.values.length));
+  const events = [];
+  for (let i = 1; i < rows; i++) {
+    const changes = signals.map(s => {
+      const prev = s.values[i - 1], curr = s.values[i];
+      if (!Number.isFinite(prev) || !Number.isFinite(curr)) return null;
+      const delta = curr - prev;
+      const scale = Math.max(Math.abs(prev), 1);
+      return { name: s.name, delta, direction: Math.abs(delta) < scale * 0.005 ? "stable" : delta > 0 ? "up" : "down" };
+    }).filter(Boolean);
+
+    const moving = changes.filter(c => c.direction !== "stable");
+    if (moving.length < 2) continue;
+
+    const up = moving.filter(c => c.direction === "up");
+    const down = moving.filter(c => c.direction === "down");
+    const group = up.length >= down.length ? up : down;
+    const agreement = group.length / moving.length;
+    if (group.length >= 2 && agreement >= 0.66) {
+      events.push({
+        index: i,
+        direction: group[0].direction === "up" ? "subida conjunta" : "queda conjunta",
+        signals: group.map(c => c.name),
+        changed: moving.length,
+        agreement
+      });
+    }
+  }
+
+  const compact = [];
+  events.forEach(event => {
+    const last = compact.at(-1);
+    if (last && event.direction === last.direction && event.index <= last.end + 2) {
+      last.end = event.index;
+      last.indices.push(event.index);
+      last.signals = [...new Set([...last.signals, ...event.signals])];
+      last.agreement = Math.max(last.agreement, event.agreement);
+    } else {
+      compact.push({ ...event, end: event.index, indices: [event.index] });
+    }
+  });
+  return compact;
+}
+
+function renderSynchronizedEvents(text) {
+  const list = document.querySelector("#syncList");
+  const summary = document.querySelector("#syncSummary");
+  if (!list || !summary) return;
+
+  const events = detectSynchronizedEvents(text);
+  summary.innerHTML = `
+    <div class="sync-stat"><strong>${events.length}</strong><span>eventos conjuntos</span></div>
+    <div class="sync-stat"><strong>${events.filter(e => e.direction === "subida conjunta").length}</strong><span>subidas</span></div>
+    <div class="sync-stat"><strong>${events.filter(e => e.direction === "queda conjunta").length}</strong><span>quedas</span></div>
+  `;
+
+  if (!events.length) {
+    list.innerHTML = '<div class="relation-empty">Nenhum evento conjunto foi identificado nesta janela.</div>';
+    return;
+  }
+
+  list.innerHTML = events.slice(-12).map((event, index) => `
+    <div class="sync-card">
+      <div class="sync-marker">${String(index + 1).padStart(2, "0")}</div>
+      <div>
+        <strong>${event.direction}</strong>
+        <span>${event.signals.join(" · ")}</span>
+        <small>pontos ${event.index + 1}–${event.end + 1} · concordância máxima ${Math.round(event.agreement * 100)}%</small>
+      </div>
+    </div>
+  `).join("");
+}
+
 function renderSignalSummary(comparison) {
   const el=document.querySelector("#signalSummary");
   if(!el) return;
@@ -334,6 +411,7 @@ function process(text) {
     renderRelationships(text);
     renderLagRelationships(text);
     drawSignalNetwork(text);
+    renderSynchronizedEvents(text);
     statusEl.textContent="Análise concluída. Baseline temporal experimental.";
   } catch(error) {
     statusEl.textContent=error.message;
