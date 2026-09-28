@@ -75,8 +75,15 @@ def create_session(payload: SessionCreate, current_user: User = Depends(get_curr
         raise HTTPException(status_code=404, detail="Project not found.")
     session = AnalysisSession(user_id=current_user.id, project_id=payload.project_id, signal=payload.signal, points=payload.points, current_value=payload.current_value,
         prediction=payload.prediction, trend=payload.trend, behavior=payload.behavior,
-        anomalies=payload.anomalies, signals_json=json.dumps(payload.signals))
+        anomalies=payload.anomalies, signals_json=json.dumps(payload.signals), dataset_text=payload.dataset_text)
     db.add(session); db.commit(); db.refresh(session)
+    return session
+
+@app.get("/sessions/{session_id}", response_model=SessionResponse)
+def get_session(session_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    session = db.query(AnalysisSession).filter(AnalysisSession.id == session_id, AnalysisSession.user_id == current_user.id).first()
+    if session is None:
+        raise HTTPException(status_code=404, detail="Analysis not found.")
     return session
 
 @app.delete("/sessions", status_code=204)
