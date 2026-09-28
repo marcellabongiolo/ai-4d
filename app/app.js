@@ -592,7 +592,7 @@ function saveAnalysisSession(text) {
     createdAt: new Date().toISOString(),
     signal: parsed.name, points: parsed.rows.length, current: result.current,
     prediction: result.prediction, trend: result.trend, behavior: result.behavior,
-    anomalies: result.anomalyCount, signals: comparison.map(s => s.name)
+    anomalies: result.anomalyCount, signals: comparison.map(s => s.name), datasetText: text
   };
   sessions.unshift(session);
   localStorage.setItem("ai4d_sessions", JSON.stringify(sessions.slice(0, 20)));
@@ -652,7 +652,8 @@ async function syncLatestSessionToApi() {
       trend: session.trend,
       behavior: session.behavior,
       anomalies: session.anomalies,
-      signals: session.signals
+      signals: session.signals,
+      dataset_text: session.datasetText || ""
     })
   });
   if (!response.ok) {
@@ -679,7 +680,8 @@ async function loadSessionsFromApi() {
     trend: item.trend,
     behavior: item.behavior,
     anomalies: item.anomalies,
-    signals: item.signals || []
+    signals: item.signals || [],
+    datasetText: item.dataset_text || ""
   }));
   localStorage.setItem("ai4d_sessions", JSON.stringify(sessions.slice(0, 20)));
   renderSavedSessions();
@@ -711,6 +713,24 @@ function addSessionSyncControls() {
   summary.appendChild(button);
 }
 
+async function reopenSession(sessionId) {
+  const local = loadAnalysisSessions().find(session => String(session.id) === String(sessionId));
+  if (local?.datasetText) { process(local.datasetText); statusEl.textContent = "Análise reaberta do histórico local."; return; }
+  const base = getConfiguredApiBase();
+  const numericId = String(sessionId).replace(/^api-/, "");
+  if (!base || !getAuthToken() || !numericId) { statusEl.textContent = "Não foi possível reabrir esta análise."; return; }
+  const response = await fetch(base + "/sessions/" + encodeURIComponent(numericId));
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.dataset_text) { statusEl.textContent = data.detail || "Esta análise não possui os dados necessários para reabertura."; return; }
+  process(data.dataset_text);
+  statusEl.textContent = "Análise reaberta da API.";
+}
+
+function bindReopenButtons() {
+  document.querySelectorAll(".reopen-session").forEach(button => {
+    button.addEventListener("click", () => reopenSession(button.dataset.sessionId).catch(error => { statusEl.textContent = "Não foi possível reabrir: " + error.message; }));
+  });
+}
 function renderSavedSessions() {
   const list = document.querySelector("#savedSessionList");
   const summary = document.querySelector("#savedSessionSummary");
@@ -725,6 +745,7 @@ function renderSavedSessions() {
     const date = new Date(session.createdAt).toLocaleString("pt-BR");
     return '<div class="session-card"><div><span class="eyebrow">ANÁLISE ' + String(index + 1).padStart(2, "0") + '</span><strong>' + session.signal + '</strong><small>' + date + " · " + session.points + " pontos · " + session.signals.length + ' sinal(is)</small></div><div class="session-metrics"><b>' + session.trend + '</b><span>' + session.anomalies + " anomalia(s) · previsão " + Number(session.prediction).toFixed(2) + '</span></div></div>';
   }).join("");
+  bindReopenButtons();
 }
 
 function renderSessionPanel(text) {
