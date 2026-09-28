@@ -600,6 +600,36 @@ function saveAnalysisSession(text) {
   return session;
 }
 
+async function loadProjectsFromApi() {
+  const base = getConfiguredApiBase();
+  if (!base || !getAuthToken()) return [];
+  const response = await fetch(base + "/projects");
+  if (!response.ok) throw new Error("Não foi possível carregar os projetos.");
+  return response.json();
+}
+
+async function createProjectFromUI() {
+  const base = getConfiguredApiBase();
+  if (!base || !getAuthToken()) throw new Error("Entre na sua conta antes de criar um projeto.");
+  const name = window.prompt("Nome do novo projeto:");
+  if (!name?.trim()) return;
+  const response = await fetch(base + "/projects", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name.trim()})});
+  const data = await response.json().catch(()=>({}));
+  if (!response.ok) throw new Error(data.detail || "Não foi possível criar o projeto.");
+  localStorage.setItem("ai4d_project_id", String(data.id));
+  await refreshProjectUI();
+}
+
+async function refreshProjectUI() {
+  const select = document.querySelector("#projectSelect");
+  if (!select || !getAuthToken()) return;
+  const projects = await loadProjectsFromApi();
+  select.innerHTML = projects.length ? projects.map(p => '<option value="'+p.id+'">'+p.name.replace(/</g,"&lt;")+'</option>').join("") : '<option value="">Nenhum projeto</option>';
+  const saved = localStorage.getItem("ai4d_project_id");
+  if (saved && projects.some(p => String(p.id) === saved)) select.value = saved;
+  else if (projects[0]) { select.value = String(projects[0].id); localStorage.setItem("ai4d_project_id", String(projects[0].id)); }
+}
+
 function getConfiguredApiBase() {
   return (apiUrl?.value || "").trim().replace(/\/$/, "");
 }
@@ -609,10 +639,12 @@ async function syncLatestSessionToApi() {
   const session = sessions[0];
   const base = getConfiguredApiBase();
   if (!session || !base) return false;
+  const projectId = Number(localStorage.getItem("ai4d_project_id")) || null;
   const response = await fetch(base + "/sessions", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
+      project_id: projectId,
       signal: session.signal,
       points: session.points,
       current_value: session.current,
@@ -633,7 +665,8 @@ async function syncLatestSessionToApi() {
 async function loadSessionsFromApi() {
   const base = getConfiguredApiBase();
   if (!base) return false;
-  const response = await fetch(base + "/sessions");
+  const projectId = Number(localStorage.getItem("ai4d_project_id")) || null;
+  const response = await fetch(base + (projectId ? "/sessions?project_id=" + projectId : "/sessions"));
   if (!response.ok) throw new Error("Não foi possível carregar o histórico da API.");
   const remote = await response.json();
   const sessions = remote.map(item => ({
@@ -725,6 +758,14 @@ function process(text) {
 }
 
 renderSavedSessions();
+document.addEventListener("DOMContentLoaded",()=>{
+  const select=document.querySelector("#projectSelect");
+  const create=document.querySelector("#newProjectBtn");
+  select?.addEventListener("change",()=>{localStorage.setItem("ai4d_project_id",select.value); loadSessionsFromApi().catch(()=>{});});
+  create?.addEventListener("click",()=>createProjectFromUI().catch(e=>statusEl.textContent=e.message));
+  window.addEventListener("ai4d-auth-changed",()=>refreshProjectUI().catch(()=>{}));
+  refreshProjectUI().catch(()=>{});
+});
 
 input.addEventListener("change", async e => {
   const file=e.target.files?.[0]; if(!file) return;
