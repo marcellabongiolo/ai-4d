@@ -14,6 +14,29 @@
       <a class="button ghost" href="../index.html">Voltar ao projeto</a>
     </header>
 
+    <section class="panel auth-panel">
+      <div class="panel-heading relation-heading">
+        <div><span class="eyebrow">CONTA AI 4D</span><h2>Seu espaço de análises</h2></div>
+        <span id="authBadge" class="badge">Não conectado</span>
+      </div>
+      <p id="authStatus" class="relation-note">Crie uma conta ou entre para sincronizar seu histórico com a API.</p>
+      <div class="auth-grid">
+        <form id="registerForm" class="auth-form">
+          <strong>Criar conta</strong>
+          <input id="registerEmail" type="email" placeholder="seu@email.com" autocomplete="email" required>
+          <input id="registerPassword" type="password" placeholder="Mínimo de 8 caracteres" minlength="8" maxlength="128" autocomplete="new-password" required>
+          <button class="button" type="submit">Criar conta</button>
+        </form>
+        <form id="loginForm" class="auth-form">
+          <strong>Entrar</strong>
+          <input id="loginEmail" type="email" placeholder="seu@email.com" autocomplete="email" required>
+          <input id="loginPassword" type="password" placeholder="Sua senha" maxlength="128" autocomplete="current-password" required>
+          <button class="button ghost" type="submit">Entrar</button>
+        </form>
+      </div>
+      <button id="logoutBtn" class="button ghost auth-logout hidden" type="button">Sair</button>
+    </section>
+
     <section class="panel">
       <div class="upload-row">
         <label class="upload-box" for="csvInput"><strong>Carregar CSV</strong><span>Formato esperado: timestamp + uma ou mais colunas numéricas.</span></label>
@@ -112,6 +135,7 @@
       </div>
     </section>
   </main>
+  <script src="auth.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
