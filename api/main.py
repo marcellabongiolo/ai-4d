@@ -60,6 +60,7 @@ def delete_project(project_id: int, current_user: User = Depends(get_current_use
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found.")
     db.query(AnalysisSession).filter(AnalysisSession.project_id == project.id, AnalysisSession.user_id == current_user.id).update({AnalysisSession.project_id: None})
+    db.query(Dataset).filter(Dataset.project_id == project.id, Dataset.user_id == current_user.id).delete()
     db.delete(project); db.commit()
 
 @app.get("/datasets", response_model=list[DatasetResponse])
