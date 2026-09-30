@@ -60,6 +60,7 @@ def delete_project(project_id: int, current_user: User = Depends(get_current_use
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found.")
     db.query(AnalysisSession).filter(AnalysisSession.project_id == project.id, AnalysisSession.user_id == current_user.id).update({AnalysisSession.project_id: None})
+    db.query(AnalysisSession).filter(AnalysisSession.dataset_id.in_(db.query(Dataset.id).filter(Dataset.project_id == project.id, Dataset.user_id == current_user.id))).update({AnalysisSession.dataset_id: None}, synchronize_session=False)
     db.query(Dataset).filter(Dataset.project_id == project.id, Dataset.user_id == current_user.id).delete()
     db.delete(project); db.commit()
 
@@ -97,21 +98,30 @@ def delete_dataset(dataset_id: int, current_user: User = Depends(get_current_use
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id, Dataset.user_id == current_user.id).first()
     if dataset is None:
         raise HTTPException(status_code=404, detail="Dataset not found.")
+    db.query(AnalysisSession).filter(AnalysisSession.dataset_id == dataset.id, AnalysisSession.user_id == current_user.id).update({AnalysisSession.dataset_id: None}, synchronize_session=False)
     db.delete(dataset); db.commit()
 
 
 @app.get("/sessions", response_model=list[SessionResponse])
-def list_sessions(project_id: int | None = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def list_sessions(project_id: int | None = None, dataset_id: int | None = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     query = db.query(AnalysisSession).filter(AnalysisSession.user_id == current_user.id)
     if project_id is not None:
         query = query.filter(AnalysisSession.project_id == project_id)
+    if dataset_id is not None:
+        query = query.filter(AnalysisSession.dataset_id == dataset_id)
     return query.order_by(AnalysisSession.created_at.desc()).limit(20).all()
 
 @app.post("/sessions", response_model=SessionResponse, status_code=201)
 def create_session(payload: SessionCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if payload.project_id is not None and db.query(Project).filter(Project.id == payload.project_id, Project.user_id == current_user.id).first() is None:
         raise HTTPException(status_code=404, detail="Project not found.")
-    session = AnalysisSession(user_id=current_user.id, project_id=payload.project_id, signal=payload.signal, points=payload.points, current_value=payload.current_value,
+    if payload.dataset_id is not None:
+        dataset = db.query(Dataset).filter(Dataset.id == payload.dataset_id, Dataset.user_id == current_user.id).first()
+        if dataset is None:
+            raise HTTPException(status_code=404, detail="Dataset not found.")
+        if payload.project_id is not None and dataset.project_id != payload.project_id:
+            raise HTTPException(status_code=422, detail="Dataset does not belong to the selected project.")
+    session = AnalysisSession(user_id=current_user.id, project_id=payload.project_id, dataset_id=payload.dataset_id, signal=payload.signal, points=payload.points, current_value=payload.current_value,
         prediction=payload.prediction, trend=payload.trend, behavior=payload.behavior,
         anomalies=payload.anomalies, signals_json=json.dumps(payload.signals), dataset_text=payload.dataset_text)
     db.add(session); db.commit(); db.refresh(session)

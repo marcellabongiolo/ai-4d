@@ -158,3 +158,40 @@ def test_deleting_project_removes_datasets():
     dataset_id=created.json()["id"]
     assert client.delete(f"/projects/{project['id']}",headers=headers).status_code==204
     assert client.get(f"/datasets/{dataset_id}",headers=headers).status_code==404
+
+
+def test_sessions_can_be_linked_to_owned_datasets():
+    _,_,token=make_user()
+    headers={"Authorization":f"Bearer {token}"}
+    project=client.post("/projects",json={"name":"Linked project"},headers=headers).json()
+    dataset=client.post("/datasets",json={
+        "project_id":project["id"],
+        "name":"linked-data",
+        "content":"timestamp,signal_a\n2026-01-01,10\n2026-01-02,11\n2026-01-03,12",
+        "signal_count":1,
+        "point_count":3
+    },headers=headers).json()
+    payload={"project_id":project["id"],"dataset_id":dataset["id"],"signal":"signal_a","points":3,
+             "current_value":12,"prediction":13,"trend":"Subindo","behavior":"Estável","anomalies":0,
+             "signals":["signal_a"],"dataset_text":dataset["content"]}
+    created=client.post("/sessions",json=payload,headers=headers)
+    assert created.status_code==201
+    assert created.json()["dataset_id"]==dataset["id"]
+    assert client.get(f"/sessions?dataset_id={dataset['id']}",headers=headers).json()[0]["dataset_id"]==dataset["id"]
+
+def test_session_cannot_attach_dataset_from_another_project():
+    _,_,token=make_user()
+    headers={"Authorization":f"Bearer {token}"}
+    project1=client.post("/projects",json={"name":"Project A"},headers=headers).json()
+    project2=client.post("/projects",json={"name":"Project B"},headers=headers).json()
+    dataset=client.post("/datasets",json={
+        "project_id":project2["id"],
+        "name":"other-project-data",
+        "content":"timestamp,signal_a\n2026-01-01,10\n2026-01-02,11\n2026-01-03,12",
+        "signal_count":1,
+        "point_count":3
+    },headers=headers).json()
+    payload={"project_id":project1["id"],"dataset_id":dataset["id"],"signal":"signal_a","points":3,
+             "current_value":12,"prediction":13,"trend":"Subindo","behavior":"Estável","anomalies":0,
+             "signals":["signal_a"]}
+    assert client.post("/sessions",json=payload,headers=headers).status_code==422

@@ -592,7 +592,7 @@ function saveAnalysisSession(text) {
     createdAt: new Date().toISOString(),
     signal: parsed.name, points: parsed.rows.length, current: result.current,
     prediction: result.prediction, trend: result.trend, behavior: result.behavior,
-    anomalies: result.anomalyCount, signals: comparison.map(s => s.name), datasetText: text
+    anomalies: result.anomalyCount, signals: comparison.map(s => s.name), datasetId: Number(document.querySelector("#datasetSelect")?.value) || null, datasetText: text
   };
   sessions.unshift(session);
   localStorage.setItem("ai4d_sessions", JSON.stringify(sessions.slice(0, 20)));
@@ -709,6 +709,7 @@ async function syncLatestSessionToApi() {
       behavior: session.behavior,
       anomalies: session.anomalies,
       signals: session.signals,
+      dataset_id: session.datasetId || null,
       dataset_text: session.datasetText || ""
     })
   });
@@ -737,6 +738,7 @@ async function loadSessionsFromApi() {
     behavior: item.behavior,
     anomalies: item.anomalies,
     signals: item.signals || [],
+    datasetId: item.dataset_id || null,
     datasetText: item.dataset_text || ""
   }));
   localStorage.setItem("ai4d_sessions", JSON.stringify(sessions.slice(0, 20)));

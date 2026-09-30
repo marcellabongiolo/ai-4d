@@ -23,6 +23,7 @@ class AnalysisSession(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id"), nullable=True, index=True)
+    dataset_id: Mapped[int | None] = mapped_column(ForeignKey("datasets.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     signal: Mapped[str] = mapped_column(String(255), nullable=False)
     points: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -33,7 +34,6 @@ class AnalysisSession(Base):
     anomalies: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     signals_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     dataset_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
-
 
 class Dataset(Base):
     __tablename__ = "datasets"
