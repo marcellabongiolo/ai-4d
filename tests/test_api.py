@@ -114,3 +114,47 @@ def test_session_reopen_is_private():
     created=client.post("/sessions",json=payload,headers={"Authorization":f"Bearer {token1}"})
     session_id=created.json()["id"]
     assert client.get(f"/sessions/{session_id}",headers={"Authorization":f"Bearer {token2}"}).status_code==404
+
+
+def test_datasets_are_private_and_project_scoped():
+    _,_,token1=make_user()
+    _,_,token2=make_user()
+    h1={"Authorization":f"Bearer {token1}"}
+    h2={"Authorization":f"Bearer {token2}"}
+
+    project=client.post("/projects",json={"name":"Dataset project"},headers=h1).json()
+    payload={
+        "project_id":project["id"],
+        "name":"sensor-data",
+        "content":"timestamp,signal_a\n2026-01-01,10\n2026-01-02,11\n2026-01-03,12",
+        "signal_count":1,
+        "point_count":3
+    }
+    created=client.post("/datasets",json=payload,headers=h1)
+    assert created.status_code==201
+    dataset=created.json()
+    assert dataset["name"]=="sensor-data"
+    assert client.get(f"/datasets?project_id={project['id']}",headers=h1).json()[0]["id"]==dataset["id"]
+    assert client.get(f"/datasets?project_id={project['id']}",headers=h2).status_code==404
+    assert client.get(f"/datasets/{dataset['id']}",headers=h2).status_code==404
+    assert client.delete(f"/datasets/{dataset['id']}",headers=h2).status_code==404
+    assert client.delete(f"/datasets/{dataset['id']}",headers=h1).status_code==204
+    assert client.get(f"/datasets?project_id={project['id']}",headers=h1).json()==[]
+
+
+def test_deleting_project_removes_datasets():
+    _,_,token=make_user()
+    headers={"Authorization":f"Bearer {token}"}
+    project=client.post("/projects",json={"name":"Delete project"},headers=headers).json()
+    payload={
+        "project_id":project["id"],
+        "name":"temporary",
+        "content":"timestamp,signal_a\n2026-01-01,10\n2026-01-02,11\n2026-01-03,12",
+        "signal_count":1,
+        "point_count":3
+    }
+    created=client.post("/datasets",json=payload,headers=headers)
+    assert created.status_code==201
+    dataset_id=created.json()["id"]
+    assert client.delete(f"/projects/{project['id']}",headers=headers).status_code==204
+    assert client.get(f"/datasets/{dataset_id}",headers=headers).status_code==404
