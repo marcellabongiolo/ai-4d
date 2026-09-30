@@ -683,6 +683,7 @@ async function refreshProjectUI() {
   const saved = localStorage.getItem("ai4d_project_id");
   if (saved && projects.some(p => String(p.id) === saved)) select.value = saved;
   else if (projects[0]) { select.value = String(projects[0].id); localStorage.setItem("ai4d_project_id", String(projects[0].id)); }
+  await refreshDatasetUI();
 }
 
 function getConfiguredApiBase() {
@@ -777,7 +778,7 @@ async function reopenSession(sessionId) {
   const response = await fetch(base + "/sessions/" + encodeURIComponent(numericId));
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.dataset_text) { statusEl.textContent = data.detail || "Esta análise não possui os dados necessários para reabertura."; return; }
-  process(data.dataset_text);
+  process(data.dataset_text, {saveSession:false});
   statusEl.textContent = "Análise reaberta da API.";
 }
 
@@ -825,7 +826,7 @@ function process(text, options = {}) {
     renderEventScores(text);
     renderEventAlerts(text);
     renderHistoricalComparison(text);
-    renderSessionPanel(text);
+    if (options.saveSession !== false) renderSessionPanel(text);
     statusEl.textContent="Análise concluída. Baseline temporal experimental.";
   } catch(error) {
     statusEl.textContent=error.message;
@@ -838,7 +839,9 @@ document.addEventListener("DOMContentLoaded",()=>{
   const select=document.querySelector("#projectSelect");
   const create=document.querySelector("#newProjectBtn");
   select?.addEventListener("change",()=>{localStorage.setItem("ai4d_project_id",select.value); loadSessionsFromApi().catch(()=>{}); refreshDatasetUI().catch(()=>{});});
-  create?.addEventListener("click",()=>createProjectFromUI().catch(e=>statusEl.textContent=e.message));\n  document.querySelector("#saveDatasetBtn")?.addEventListener("click",()=>saveCurrentDataset().catch(e=>statusEl.textContent=e.message));\n  document.querySelector("#datasetSelect")?.addEventListener("change",()=>openDatasetFromApi(document.querySelector("#datasetSelect").value).catch(e=>statusEl.textContent=e.message));
+  create?.addEventListener("click",()=>createProjectFromUI().catch(e=>statusEl.textContent=e.message));
+  document.querySelector("#saveDatasetBtn")?.addEventListener("click",()=>saveCurrentDataset().catch(e=>statusEl.textContent=e.message));
+  document.querySelector("#datasetSelect")?.addEventListener("change",()=>openDatasetFromApi(document.querySelector("#datasetSelect").value).catch(e=>statusEl.textContent=e.message));
   window.addEventListener("ai4d-auth-changed",()=>refreshProjectUI().catch(()=>{}));
   refreshProjectUI().catch(()=>{});
 });
