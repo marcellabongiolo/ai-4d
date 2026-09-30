@@ -8,17 +8,18 @@ branch_labels = None
 depends_on = None
 
 def upgrade():
-    op.add_column("analysis_sessions", sa.Column("dataset_id", sa.Integer(), nullable=True))
-    op.create_index("ix_analysis_sessions_dataset_id", "analysis_sessions", ["dataset_id"])
-    op.create_foreign_key(
-        "fk_analysis_sessions_dataset_id",
-        "analysis_sessions",
-        "datasets",
-        ["dataset_id"],
-        ["id"],
-    )
+    with op.batch_alter_table("analysis_sessions") as batch_op:
+        batch_op.add_column(sa.Column("dataset_id", sa.Integer(), nullable=True))
+        batch_op.create_index("ix_analysis_sessions_dataset_id", ["dataset_id"])
+        batch_op.create_foreign_key(
+            "fk_analysis_sessions_dataset_id",
+            "datasets",
+            ["dataset_id"],
+            ["id"],
+        )
 
 def downgrade():
-    op.drop_constraint("fk_analysis_sessions_dataset_id", "analysis_sessions", type_="foreignkey")
-    op.drop_index("ix_analysis_sessions_dataset_id", table_name="analysis_sessions")
-    op.drop_column("analysis_sessions", "dataset_id")
+    with op.batch_alter_table("analysis_sessions") as batch_op:
+        batch_op.drop_constraint("fk_analysis_sessions_dataset_id", type_="foreignkey")
+        batch_op.drop_index("ix_analysis_sessions_dataset_id")
+        batch_op.drop_column("dataset_id")
