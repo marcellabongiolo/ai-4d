@@ -33,3 +33,15 @@ class AnalysisSession(Base):
     anomalies: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     signals_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     dataset_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class Dataset(Base):
+    __tablename__ = "datasets"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    signal_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    point_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
