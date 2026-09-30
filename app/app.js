@@ -608,6 +608,61 @@ async function loadProjectsFromApi() {
   return response.json();
 }
 
+async function loadDatasetsFromApi(projectId) {
+  const base = getConfiguredApiBase();
+  if (!base || !getAuthToken() || !projectId) return [];
+  const response = await fetch(base + "/datasets?project_id=" + encodeURIComponent(projectId));
+  if (!response.ok) throw new Error("Não foi possível carregar os datasets.");
+  return response.json();
+}
+
+async function refreshDatasetUI() {
+  const select = document.querySelector("#datasetSelect");
+  if (!select) return;
+  const projectId = Number(localStorage.getItem("ai4d_project_id")) || null;
+  if (!projectId || !getAuthToken()) {
+    select.innerHTML = '<option value="">Entre e selecione um projeto</option>';
+    return;
+  }
+  const datasets = await loadDatasetsFromApi(projectId);
+  select.innerHTML = datasets.length
+    ? '<option value="">Selecione um dataset</option>' + datasets.map(d => '<option value="' + d.id + '">' + d.name.replace(/</g,"&lt;") + ' · ' + d.point_count + ' pontos</option>').join("")
+    : '<option value="">Nenhum dataset salvo</option>';
+}
+
+async function saveCurrentDataset() {
+  const base = getConfiguredApiBase();
+  const projectId = Number(localStorage.getItem("ai4d_project_id")) || null;
+  const text = window.__rawText || "";
+  if (!base || !getAuthToken()) throw new Error("Entre na sua conta antes de salvar um dataset.");
+  if (!projectId) throw new Error("Selecione um projeto antes de salvar o dataset.");
+  if (!text.trim()) throw new Error("Carregue ou gere uma análise antes de salvar o dataset.");
+  const parsed = parseSignals(text);
+  const name = window.prompt("Nome do dataset:", "Dataset " + new Date().toLocaleString("pt-BR"));
+  if (!name?.trim()) return;
+  const response = await fetch(base + "/datasets", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({project_id:projectId,name:name.trim(),content:text,signal_count:parsed.signals.length,point_count:parsed.signals[0]?.values?.length || 0})
+  });
+  const data = await response.json().catch(()=>({}));
+  if (!response.ok) throw new Error(data.detail || "Não foi possível salvar o dataset.");
+  await refreshDatasetUI();
+  document.querySelector("#datasetSelect").value = String(data.id);
+  statusEl.textContent = "Dataset salvo no projeto.";
+}
+
+async function openDatasetFromApi(datasetId) {
+  const base = getConfiguredApiBase();
+  if (!base || !getAuthToken() || !datasetId) return;
+  const response = await fetch(base + "/datasets/" + encodeURIComponent(datasetId));
+  const data = await response.json().catch(()=>({}));
+  if (!response.ok) throw new Error(data.detail || "Não foi possível abrir o dataset.");
+  process(data.content, {saveSession:false});
+  statusEl.textContent = "Dataset carregado do projeto.";
+}
+
+
 async function createProjectFromUI() {
   const base = getConfiguredApiBase();
   if (!base || !getAuthToken()) throw new Error("Entre na sua conta antes de criar um projeto.");
@@ -628,6 +683,7 @@ async function refreshProjectUI() {
   const saved = localStorage.getItem("ai4d_project_id");
   if (saved && projects.some(p => String(p.id) === saved)) select.value = saved;
   else if (projects[0]) { select.value = String(projects[0].id); localStorage.setItem("ai4d_project_id", String(projects[0].id)); }
+  await refreshDatasetUI();
 }
 
 function getConfiguredApiBase() {
@@ -715,14 +771,14 @@ function addSessionSyncControls() {
 
 async function reopenSession(sessionId) {
   const local = loadAnalysisSessions().find(session => String(session.id) === String(sessionId));
-  if (local?.datasetText) { process(local.datasetText); statusEl.textContent = "Análise reaberta do histórico local."; return; }
+  if (local?.datasetText) { process(local.datasetText, {saveSession:false}); statusEl.textContent = "Análise reaberta do histórico local."; return; }
   const base = getConfiguredApiBase();
   const numericId = String(sessionId).replace(/^api-/, "");
   if (!base || !getAuthToken() || !numericId) { statusEl.textContent = "Não foi possível reabrir esta análise."; return; }
   const response = await fetch(base + "/sessions/" + encodeURIComponent(numericId));
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.dataset_text) { statusEl.textContent = data.detail || "Esta análise não possui os dados necessários para reabertura."; return; }
-  process(data.dataset_text);
+  process(data.dataset_text, {saveSession:false});
   statusEl.textContent = "Análise reaberta da API.";
 }
 
@@ -752,7 +808,7 @@ function renderSessionPanel(text) {
   try { saveAnalysisSession(text); }
   catch (_) { renderSavedSessions(); }
 }
-function process(text) {
+function process(text, options = {}) {
   try {
     window.__rawText=text;
     const parsed=parseCSV(text), result=analyze(parsed.rows);
@@ -770,7 +826,7 @@ function process(text) {
     renderEventScores(text);
     renderEventAlerts(text);
     renderHistoricalComparison(text);
-    renderSessionPanel(text);
+    if (options.saveSession !== false) renderSessionPanel(text);
     statusEl.textContent="Análise concluída. Baseline temporal experimental.";
   } catch(error) {
     statusEl.textContent=error.message;
@@ -782,8 +838,10 @@ renderSavedSessions();
 document.addEventListener("DOMContentLoaded",()=>{
   const select=document.querySelector("#projectSelect");
   const create=document.querySelector("#newProjectBtn");
-  select?.addEventListener("change",()=>{localStorage.setItem("ai4d_project_id",select.value); loadSessionsFromApi().catch(()=>{});});
+  select?.addEventListener("change",()=>{localStorage.setItem("ai4d_project_id",select.value); loadSessionsFromApi().catch(()=>{}); refreshDatasetUI().catch(()=>{});});
   create?.addEventListener("click",()=>createProjectFromUI().catch(e=>statusEl.textContent=e.message));
+  document.querySelector("#saveDatasetBtn")?.addEventListener("click",()=>saveCurrentDataset().catch(e=>statusEl.textContent=e.message));
+  document.querySelector("#datasetSelect")?.addEventListener("change",()=>openDatasetFromApi(document.querySelector("#datasetSelect").value).catch(e=>statusEl.textContent=e.message));
   window.addEventListener("ai4d-auth-changed",()=>refreshProjectUI().catch(()=>{}));
   refreshProjectUI().catch(()=>{});
 });

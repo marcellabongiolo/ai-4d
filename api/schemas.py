@@ -39,3 +39,16 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user_id: int
+
+
+class DatasetCreate(BaseModel):
+    project_id: int = Field(ge=1)
+    name: str = Field(min_length=1, max_length=160)
+    content: str = Field(min_length=1, max_length=2_000_000)
+    signal_count: int = Field(ge=1)
+    point_count: int = Field(ge=1)
+
+class DatasetResponse(DatasetCreate):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    created_at: datetime
