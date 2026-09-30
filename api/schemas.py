@@ -12,6 +12,7 @@ class ProjectResponse(ProjectCreate):
 
 class SessionCreate(BaseModel):
     project_id: int | None = Field(default=None, ge=1)
+    dataset_id: int | None = Field(default=None, ge=1)
     signal: str = Field(min_length=1, max_length=255)
     points: int = Field(ge=1)
     current_value: float
@@ -39,7 +40,6 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user_id: int
-
 
 class DatasetCreate(BaseModel):
     project_id: int = Field(ge=1)
