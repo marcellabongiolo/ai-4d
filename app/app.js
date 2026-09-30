@@ -643,7 +643,7 @@ async function saveCurrentDataset() {
   const response = await fetch(base + "/datasets", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({project_id:projectId,name:name.trim(),content:text,signal_count:parsed.length,point_count:parsed[0]?.values?.length || 0})
+    body: JSON.stringify({project_id:projectId,name:name.trim(),content:text,signal_count:parsed.signals.length,point_count:parsed.signals[0]?.values?.length || 0})
   });
   const data = await response.json().catch(()=>({}));
   if (!response.ok) throw new Error(data.detail || "Não foi possível salvar o dataset.");
@@ -807,7 +807,7 @@ function renderSessionPanel(text) {
   try { saveAnalysisSession(text); }
   catch (_) { renderSavedSessions(); }
 }
-function process(text) {
+function process(text, options = {}) {
   try {
     window.__rawText=text;
     const parsed=parseCSV(text), result=analyze(parsed.rows);
