@@ -1,5 +1,6 @@
 """AI 4D experimental inference, persistence, and authentication API."""
 import json
+import os
 from io import StringIO
 import numpy as np
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
@@ -14,7 +15,9 @@ from api.schemas import DatasetCreate, DatasetResponse, LoginRequest, ProjectCre
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title="AI 4D API", version="0.6.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
+_default_origins = "http://localhost:8000,http://127.0.0.1:8000,https://marcellabongiolo.github.io"
+CORS_ORIGINS = [origin.strip() for origin in os.getenv("AI4D_CORS_ORIGINS", _default_origins).split(",") if origin.strip()]
+app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
 
 @app.get("/")
 def root() -> dict[str, str]:
