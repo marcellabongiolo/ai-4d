@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: ai-4d-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: sh -c "uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-10000}"
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: AI4D_ENV
+        value: "production"
+      - key: AI4D_SECRET_KEY
+        generateValue: true
+      - key: AI4D_CORS_ORIGINS
+        value: "https://marcellabongiolo.github.io"
