@@ -9,7 +9,11 @@ from sqlalchemy.orm import Session
 from api.database import get_db
 from api.models import User
 
-ENVIRONMENT = os.getenv("AI4D_ENV", "development").lower()\nSECRET_KEY = os.getenv("AI4D_SECRET_KEY")\nif ENVIRONMENT == "production" and not SECRET_KEY:\n    raise RuntimeError("AI4D_SECRET_KEY must be configured in production.")\nSECRET_KEY = SECRET_KEY or "dev-only-change-this-secret"
+ENVIRONMENT = os.getenv("AI4D_ENV", "development").lower()
+SECRET_KEY = os.getenv("AI4D_SECRET_KEY")
+if ENVIRONMENT == "production" and not SECRET_KEY:
+    raise RuntimeError("AI4D_SECRET_KEY must be configured in production.")
+SECRET_KEY = SECRET_KEY or "dev-only-change-this-secret"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_MINUTES = 60
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
