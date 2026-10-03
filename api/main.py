@@ -7,6 +7,7 @@ from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from api.auth import create_access_token, get_current_user, hash_password, verify_password
 from api.database import Base, engine, get_db
@@ -26,8 +27,12 @@ def root() -> dict[str, str]:
     return {"name": "AI 4D API", "status": "online", "docs": "/docs"}
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "model": "linear-regression-lag-baseline"}
+def health(db: Session = Depends(get_db)) -> dict[str, str]:
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Database unavailable.") from exc
+    return {"status": "ok", "database": "ok", "model": "linear-regression-lag-baseline"}
 
 @app.post("/auth/register", response_model=TokenResponse, status_code=201)
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
