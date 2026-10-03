@@ -13,7 +13,9 @@ from api.database import Base, engine, get_db
 from api.models import AnalysisSession, Dataset, Project, User
 from api.schemas import DatasetCreate, DatasetResponse, LoginRequest, ProjectCreate, ProjectResponse, RegisterRequest, SessionCreate, SessionResponse, TokenResponse
 
-Base.metadata.create_all(bind=engine)
+if os.getenv("AI4D_ENV", "development").lower() != "production":
+    Base.metadata.create_all(bind=engine)
+
 app = FastAPI(title="AI 4D API", version="0.6.0")
 _default_origins = "http://localhost:8000,http://127.0.0.1:8000,https://marcellabongiolo.github.io"
 CORS_ORIGINS = [origin.strip() for origin in os.getenv("AI4D_CORS_ORIGINS", _default_origins).split(",") if origin.strip()]
@@ -73,7 +75,6 @@ def list_datasets(project_id: int, current_user: User = Depends(get_current_user
         raise HTTPException(status_code=404, detail="Project not found.")
     return db.query(Dataset).filter(Dataset.project_id == project_id, Dataset.user_id == current_user.id).order_by(Dataset.created_at.desc()).all()
 
-
 @app.post("/datasets", response_model=DatasetResponse, status_code=201)
 def create_dataset(payload: DatasetCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == payload.project_id, Project.user_id == current_user.id).first()
@@ -87,14 +88,12 @@ def create_dataset(payload: DatasetCreate, current_user: User = Depends(get_curr
     db.add(dataset); db.commit(); db.refresh(dataset)
     return dataset
 
-
 @app.get("/datasets/{dataset_id}", response_model=DatasetResponse)
 def get_dataset(dataset_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id, Dataset.user_id == current_user.id).first()
     if dataset is None:
         raise HTTPException(status_code=404, detail="Dataset not found.")
     return dataset
-
 
 @app.delete("/datasets/{dataset_id}", status_code=204)
 def delete_dataset(dataset_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> None:
@@ -103,7 +102,6 @@ def delete_dataset(dataset_id: int, current_user: User = Depends(get_current_use
         raise HTTPException(status_code=404, detail="Dataset not found.")
     db.query(AnalysisSession).filter(AnalysisSession.dataset_id == dataset.id, AnalysisSession.user_id == current_user.id).update({AnalysisSession.dataset_id: None}, synchronize_session=False)
     db.delete(dataset); db.commit()
-
 
 @app.get("/sessions", response_model=list[SessionResponse])
 def list_sessions(project_id: int | None = None, dataset_id: int | None = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
