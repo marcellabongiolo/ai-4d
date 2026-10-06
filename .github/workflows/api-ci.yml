@@ -25,5 +25,11 @@ jobs:
           PYTHONPATH: .
         run: pytest -q
 
+      - name: Validate Alembic migrations
+        env:
+          PYTHONPATH: .
+          DATABASE_URL: sqlite:///./ci-ai4d.db
+        run: alembic upgrade head
+
       - name: Build Docker image
         run: docker build -t ai-4d-api .
