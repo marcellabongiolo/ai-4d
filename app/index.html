@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI 4D — Data Intelligence</title>
+  <link rel="stylesheet" href="app.css">
+  <meta name="description" content="AI 4D V2 — análise temporal experimental de dados.">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header">
+      <div><span class="eyebrow">AI 4D / V2</span><h1>Data Intelligence</h1><p>Envie uma série temporal e transforme dados em sinais, tendências e previsões.</p></div>
+      <a class="button ghost" href="../index.html">Voltar ao projeto</a>
+    </header>
+
+    <section class="panel auth-panel">
+      <div class="panel-heading relation-heading">
+        <div><span class="eyebrow">CONTA AI 4D</span><h2>Seu espaço de análises</h2></div>
+        <span id="authBadge" class="badge">Não conectado</span>
+      </div>
+      <p id="authStatus" class="relation-note">Crie uma conta ou entre para sincronizar seu histórico com a API.</p>
+      <div class="auth-grid">
+        <form id="registerForm" class="auth-form">
+          <strong>Criar conta</strong>
+          <input id="registerEmail" type="email" placeholder="seu@email.com" autocomplete="email" required>
+          <input id="registerPassword" type="password" placeholder="Mínimo de 8 caracteres" minlength="8" maxlength="128" autocomplete="new-password" required>
+          <button class="button" type="submit">Criar conta</button>
+        </form>
+        <form id="loginForm" class="auth-form">
+          <strong>Entrar</strong>
+          <input id="loginEmail" type="email" placeholder="seu@email.com" autocomplete="email" required>
+          <input id="loginPassword" type="password" placeholder="Sua senha" maxlength="128" autocomplete="current-password" required>
+          <button class="button ghost" type="submit">Entrar</button>
+        </form>
+      </div>
+      <button id="logoutBtn" class="button ghost auth-logout hidden" type="button">Sair</button>
+    </section>
+
+    <section class="panel">
+      <div class="upload-row">
+        <label class="upload-box" for="csvInput"><strong>Carregar CSV</strong><span>Formato esperado: timestamp + uma ou mais colunas numéricas.</span></label>
+        <input id="csvInput" type="file" accept=".csv,text/csv">
+        <button id="sampleBtn" class="button">Usar dados de exemplo</button>
+      </div>
+      <p id="status" class="status">Aguardando dados.</p>
+      <div class="api-row"><label for="apiUrl">API local (opcional)</label><input id="apiUrl" type="url" placeholder="http://localhost:8000"><button id="apiBtn" class="button ghost">Usar ML da API</button></div>
+      <div class="project-row"><label for="projectSelect">Projeto</label><select id="projectSelect"><option value="">Entre para carregar projetos</option></select><button id="newProjectBtn" class="button ghost" type="button">Novo projeto</button></div>\n      <div class="dataset-row"><label for="datasetSelect">Dataset</label><select id="datasetSelect"><option value="">Selecione um projeto</option></select><button id="saveDatasetBtn" class="button ghost" type="button">Salvar dataset</button></div>
+    </section>
+
+    <section id="dashboard" class="dashboard hidden">
+      <div class="metrics">
+        <article class="metric"><span>Pontos</span><strong id="points">—</strong></article>
+        <article class="metric"><span>Valor atual</span><strong id="current">—</strong></article>
+        <article class="metric"><span>Tendência</span><strong id="trend">—</strong></article>
+        <article class="metric"><span>Comportamento</span><strong id="behavior">—</strong></article>
+        <article class="metric"><span>Próxima previsão</span><strong id="prediction">—</strong></article>
+        <article class="metric"><span>Anomalias</span><strong id="anomalies">—</strong></article>
+        <article class="metric"><span>MAE (ML)</span><strong id="mae">—</strong></article>
+        <article class="metric"><span>RMSE (ML)</span><strong id="rmse">—</strong></article>
+        <article class="metric"><span>Modelo</span><strong id="model">—</strong></article>
+        <article class="metric"><span>Lags</span><strong id="lags">—</strong></article>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">ANÁLISE TEMPORAL</span><h2>Comportamento dos sinais</h2></div><span id="signalName" class="badge">—</span></div>
+        <canvas id="chart" width="1100" height="420"></canvas>
+        <div id="signalSummary" class="signal-summary"></div>
+        <canvas id="multiChart" width="1100" height="300"></canvas>
+
+        <div class="relationships">
+          <div class="panel-heading relation-heading"><div><span class="eyebrow">RELAÇÕES</span><h2>Como os sinais se movem juntos</h2></div><span class="badge">Correlação</span></div>
+          <p class="relation-note">A correlação descreve associação estatística entre sinais alinhados. Ela não demonstra causa e efeito.</p>
+          <div id="relationshipList" class="relationship-list"></div>
+        </div>
+
+        <div class="lag-panel">
+          <div class="panel-heading relation-heading"><div><span class="eyebrow">MOVIMENTO TEMPORAL</span><h2>Quando um sinal se move em relação ao outro</h2></div><span class="badge">Lag</span></div>
+          <p class="relation-note">O lag indica um deslocamento temporal que maximiza a associação observada. É uma medida exploratória, não uma prova de causalidade.</p>
+          <div id="lagList" class="lag-list"></div>
+        </div>
+
+        <div class="network-panel">
+          <div class="panel-heading relation-heading"><div><span class="eyebrow">MAPA DE RELAÇÕES</span><h2>Rede dos sinais</h2></div><span class="badge">Grafo experimental</span></div>
+          <p class="relation-note">Cada nó representa um sinal. As conexões mostram associações estatísticas; espessura maior significa maior correlação absoluta.</p>
+          <canvas id="networkChart" width="1100" height="360"></canvas>
+        </div>
+
+        <div class="interpretation-panel">
+          <div class="panel-heading relation-heading"><div><span class="eyebrow">INTERPRETAÇÃO AUTOMÁTICA</span><h2>O que os eventos significam</h2></div><span class="badge">Experimental</span></div>
+          <p id="eventInterpretation" class="interpretation-lead">Aguardando análise.</p>
+          <ul id="eventInterpretationList" class="interpretation-list"></ul>
+          <p class="relation-note">Estas frases são geradas a partir das métricas calculadas pelo sistema. Elas descrevem padrões observados e não estabelecem causalidade.</p>
+        </div>
+
+        <div class="history-panel">\n          <div class="panel-heading relation-heading"><div><span class="eyebrow">HISTÓRICO & COMPARAÇÃO</span><h2>Como o comportamento mudou?</h2></div><span class="badge">2 períodos</span></div>\n          <p id="historyHeadline" class="interpretation-lead">Aguardando dados para comparar o período atual com o anterior.</p>\n          <div id="historySummary" class="history-summary"></div>\n          <div id="historyList" class="history-list"></div>\n          <p class="relation-note">A comparação divide os dados enviados em duas janelas. Ela descreve mudanças dentro deste arquivo e não representa histórico persistente de usuários.</p>\n        </div>\n\n        <div class="sessions-panel">
+          <div class="panel-heading relation-heading"><div><span class="eyebrow">ANÁLISES SALVAS</span><h2>Seu histórico local</h2></div><span class="badge">Até 20</span></div>
+          <p class="relation-note">Por padrão, as análises ficam neste navegador. Se você informar uma API no campo acima, poderá sincronizar a análise com o backend e recuperar o histórico persistido.</p>
+          <div id="savedSessionSummary" class="session-summary"></div>
+          <div id="savedSessionList" class="session-list"></div>
+        </div>
+
+        <div class="event-alert-panel">
+          <div class="panel-heading relation-heading"><div><span class="eyebrow">SISTEMA DE ALERTAS</span><h2>Eventos que pedem atenção</h2></div><span class="badge">Experimental</span></div>
+          <p class="relation-note">O sistema gera alertas a partir da relevância estimada dos eventos. Os alertas são informativos e não representam uma decisão ou diagnóstico automático.</p>
+          <div id="eventAlertSummary" class="alert-summary"></div>
+          <div id="eventAlertList" class="event-alert-list"></div>
+        </div>
+
+        <div class="event-score-panel">
+          <div class="panel-heading relation-heading"><div><span class="eyebrow">RELEVÂNCIA DOS EVENTOS</span><h2>Quais eventos merecem atenção?</h2></div><span class="badge">Score 0–100</span></div>
+          <p class="relation-note">A pontuação combina cobertura de sinais, concordância e intensidade relativa do movimento. É um indicador experimental, não uma decisão automática sobre importância no mundo real.</p>
+          <div id="eventScoreSummary" class="score-summary"></div>
+          <div id="eventScoreList" class="event-score-list"></div>
+        </div>
+
+        <div class="event-timeline-panel">
+          <div class="panel-heading relation-heading"><div><span class="eyebrow">LINHA DO TEMPO</span><h2>História dos eventos</h2></div><span class="badge">Temporal</span></div>
+          <p class="relation-note">Uma visão compacta das mudanças detectadas ao longo da série. Eventos sincronizados recebem destaque.</p>
+          <div id="eventTimelineSummary" class="timeline-summary"></div>
+          <div id="eventTimeline" class="event-timeline"></div>
+        </div>
+
+        <div class="sync-panel">
+          <div class="panel-heading relation-heading"><div><span class="eyebrow">EVENTOS SINCRONIZADOS</span><h2>Mudanças que acontecem juntas</h2></div><span class="badge">Experimental</span></div>
+          <p class="relation-note">O AI 4D procura pontos em que vários sinais mudam de direção na mesma janela temporal. Isso ajuda a encontrar eventos conjuntos, sem afirmar que um sinal causa o outro.</p>
+          <div id="syncSummary" class="sync-summary"></div>
+          <div id="syncList" class="sync-list"></div>
+        </div>
+      </div>
+
+      <div class="insights">
+        <article class="panel"><span class="eyebrow">SINAL</span><h2>O que encontramos</h2><p id="insight">—</p></article>
+        <article class="panel"><span class="eyebrow">ANOMALIAS</span><h2>Detecção de desvios</h2><p id="anomalyInsight">Aguardando análise.</p><div id="anomalyTimeline" class="anomaly-timeline"><div class="timeline-step"><span>01</span><strong>Normal</strong><small>O sinal segue o padrão local.</small></div><div class="timeline-step"><span>02</span><strong>Mudança</strong><small>O comportamento começa a se afastar.</small></div><div class="timeline-step"><span>03</span><strong>Anomalia</strong><small>O desvio ultrapassa o limite estatístico.</small></div><div class="timeline-step"><span>04</span><strong>Impacto</strong><small>O sistema estima a direção do desvio.</small></div></div><div id="anomalyList" class="anomaly-list"></div></article>
+        <article class="panel"><span class="eyebrow">PRÓXIMO PASSO</span><h2>Interpretação</h2><p id="nextStep">Este resultado é experimental e serve como baseline, não como garantia de previsão.</p></article>
+      </div>
+    </section>
+  </main>
+  <script src="auth.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
