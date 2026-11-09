@@ -45,3 +45,8 @@ The repository now includes an Alembic migration for the persistence schema. For
 The prediction endpoint compares a small linear-regression lag model with a persistence baseline. The sample dataset is small and synthetic, so results should not be treated as production forecasts.
 
 This is an experimental portfolio API, not a production service yet.
+
+
+## Prediction limits and evaluation
+
+`POST /predict` reads at most 8 MiB of CSV and accepts at most 20,000 finite observations. Oversized uploads return 413. MAE/RMSE report the validation segment used for model selection; they are not an independent final-test estimate. The selected linear model is refitted on all supplied observations for its next prediction. Add gateway request/rate limits before offering a public service.

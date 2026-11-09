@@ -195,3 +195,24 @@ def test_session_cannot_attach_dataset_from_another_project():
              "current_value":12,"prediction":13,"trend":"Subindo","behavior":"Estável","anomalies":0,
              "signals":["signal_a"]}
     assert client.post("/sessions",json=payload,headers=headers).status_code==422
+
+
+def test_predict_rejects_oversized_upload(monkeypatch):
+    monkeypatch.setattr("api.main.MAX_PREDICTION_UPLOAD_BYTES", 32)
+    response = client.post("/predict", files={"file": ("large.csv", b"x" * 33, "text/csv")})
+    assert response.status_code == 413
+
+
+def test_predict_rejects_too_many_observations(monkeypatch):
+    monkeypatch.setattr("api.main.MAX_PREDICTION_POINTS", 8)
+    csv = "timestamp,signal\n" + "\n".join(f"{i},{i}" for i in range(9))
+    response = client.post("/predict", files={"file": ("large.csv", csv.encode(), "text/csv")})
+    assert response.status_code == 400
+    assert "observation limit" in response.json()["detail"]
+
+
+def test_predict_rejects_nonfinite_signals():
+    csv = "timestamp,signal\n" + "\n".join(f"{i},{'nan' if i == 4 else i}" for i in range(10))
+    response = client.post("/predict", files={"file": ("invalid.csv", csv.encode(), "text/csv")})
+    assert response.status_code == 400
+    assert "finite" in response.json()["detail"]
