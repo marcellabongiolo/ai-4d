@@ -34,3 +34,7 @@ Esta versão continua experimental. Os resultados não devem ser usados como dec
 - PostgreSQL e migrações de banco;
 - infraestrutura cloud;
 - modelo ML mais robusto e avaliação contínua.
+
+## Publicação de scripts
+
+Os scripts locais usam uma versão na URL para evitar que o navegador/CDN reutilize uma cópia anterior após publicar correções. Ao alterar `app.js` ou `auth.js`, atualize o parâmetro `v` correspondente em `index.html`.
