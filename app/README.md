@@ -18,7 +18,7 @@ A V2 usa a primeira coluna numérica encontrada como sinal principal.
 
 ## Autenticação
 
-O frontend usa o token Bearer retornado por `/auth/register` ou `/auth/login`. O token é mantido no armazenamento local do navegador para manter a sessão entre recarregamentos.
+O frontend usa o token Bearer retornado por `/auth/register` ou `/auth/login`. O token é mantido no armazenamento local do navegador para manter a sessão entre recarregamentos e fica vinculado ao endereço normalizado da API que o emitiu. Ele só é acrescentado às rotas privadas `/sessions`, `/projects` e `/datasets` dessa mesma API. Ao trocar o endereço da API, entre novamente; sessões antigas sem esse vínculo também exigem novo login. APIs remotas devem usar HTTPS; HTTP é permitido apenas para desenvolvimento em loopback.
 
 A URL da API é configurável na interface e é salva localmente no navegador.
 
