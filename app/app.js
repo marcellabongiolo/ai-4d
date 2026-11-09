@@ -421,7 +421,92 @@ function buildEventAlerts(text) {
   });
 }
 
-function parseTemporalDataset(text) {\n  const lines = text.trim().split(/\\r?\\n/).filter(Boolean);\n  if (lines.length < 3) return { timestamps: [], signals: [] };\n  const headers = lines[0].split(",").map(v => v.trim());\n  const rows = lines.slice(1).map(line => line.split(","));\n  const timestamps = rows.map(parts => parts[0]);\n  const signals = headers.slice(1).map((name, offset) => ({\n    name,\n    values: rows.map(parts => Number(parts[offset + 1]))\n  })).filter(s => s.values.filter(Number.isFinite).length >= 6);\n  return { timestamps, signals };\n}\n\nfunction summarizeWindow(values) {\n  const rows = values.map((value, i) => ({ timestamp: String(i + 1), value })).filter(r => Number.isFinite(r.value));\n  if (rows.length < 3) return null;\n  const result = analyze(rows);\n  const mean = rows.reduce((sum, r) => sum + r.value, 0) / rows.length;\n  return { ...result, mean };\n}\n\nfunction changeLabel(current, previous, threshold = 0.12) {\n  if (!Number.isFinite(current) || !Number.isFinite(previous)) return "sem comparação";\n  const base = Math.max(Math.abs(previous), 1e-9);\n  const ratio = (current - previous) / base;\n  if (Math.abs(ratio) < threshold) return "sem mudança relevante";\n  return ratio > 0 ? "aumentou" : "diminuiu";\n}\n\nfunction compareHistoricalWindows(text) {\n  const { timestamps, signals } = parseTemporalDataset(text);\n  if (!signals.length) return null;\n  const primary = signals[0];\n  const finite = primary.values.map((value, index) => ({ value, timestamp: timestamps[index] })).filter(r => Number.isFinite(r.value));\n  const midpoint = Math.floor(finite.length / 2);\n  const previousValues = finite.slice(0, midpoint).map(r => r.value);\n  const currentValues = finite.slice(midpoint).map(r => r.value);\n  const previous = summarizeWindow(previousValues);\n  const current = summarizeWindow(currentValues);\n  if (!previous || !current) return null;\n  const anomalyRatePrevious = previous.anomalyCount / Math.max(previousValues.length, 1);\n  const anomalyRateCurrent = current.anomalyCount / Math.max(currentValues.length, 1);\n  const eventSource = detectSynchronizedEvents(text);\n  const splitIndex = Math.max(1, Math.floor(finite.length / 2));\n  const eventPrevious = eventSource.filter(e => e.index <= splitIndex).length;\n  const eventCurrent = eventSource.filter(e => e.index > splitIndex).length;\n  const volatilityChange = changeLabel(current.volatility, previous.volatility);\n  const anomalyChange = changeLabel(anomalyRateCurrent, anomalyRatePrevious);\n  const eventChange = changeLabel(eventCurrent, eventPrevious);\n  const meanChange = changeLabel(current.mean, previous.mean);\n  const headline = `${primary.name}: no período atual, a volatilidade ${volatilityChange} e a taxa de anomalias ${anomalyChange} em relação ao período anterior.`;\n  return {\n    signal: primary.name,\n    previous, current, previousValues, currentValues,\n    previousLabel: timestamps[0] || "início",\n    currentLabel: timestamps[splitIndex] || "segunda metade",\n    anomalyRatePrevious, anomalyRateCurrent,\n    eventPrevious, eventCurrent,\n    volatilityChange, anomalyChange, eventChange, meanChange, headline\n  };\n}\n\nfunction renderHistoricalComparison(text) {\n  const summary = document.querySelector("#historySummary");\n  const list = document.querySelector("#historyList");\n  const headline = document.querySelector("#historyHeadline");\n  if (!summary || !list || !headline) return;\n  const result = compareHistoricalWindows(text);\n  if (!result) {\n    headline.textContent = "Envie uma série com dados suficientes para comparar dois períodos.";\n    summary.innerHTML = "";\n    list.innerHTML = "";\n    return;\n  }\n  headline.textContent = result.headline;\n  const cards = [\n    ["Volatilidade", result.previous.volatility, result.current.volatility, result.volatilityChange],\n    ["Média", result.previous.mean, result.current.mean, result.meanChange],\n    ["Taxa de anomalias", result.anomalyRatePrevious * 100, result.anomalyRateCurrent * 100, result.anomalyChange],\n    ["Eventos conjuntos", result.eventPrevious, result.eventCurrent, result.eventChange]\n  ];\n  summary.innerHTML = cards.map(([label, prev, curr, change]) => `<div class="history-stat"><span>${label}</span><strong>${Number(prev).toFixed(2)} → ${Number(curr).toFixed(2)}</strong><small>${change}</small></div>`).join("");\n  list.innerHTML = `<div class="history-window"><span class="eyebrow">PERÍODO ANTERIOR</span><strong>${result.previousValues.length} pontos</strong><small>${result.previousLabel}</small></div><div class="history-window"><span class="eyebrow">PERÍODO ATUAL</span><strong>${result.currentValues.length} pontos</strong><small>${result.currentLabel}</small></div>`;\n}\n\nfunction renderEventAlerts(text) {
+function parseTemporalDataset(text) {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  if (lines.length < 3) return { timestamps: [], signals: [] };
+  const headers = lines[0].split(",").map(v => v.trim());
+  const rows = lines.slice(1).map(line => line.split(","));
+  const timestamps = rows.map(parts => parts[0]);
+  const signals = headers.slice(1).map((name, offset) => ({
+    name,
+    values: rows.map(parts => Number(parts[offset + 1]))
+  })).filter(s => s.values.filter(Number.isFinite).length >= 6);
+  return { timestamps, signals };
+}
+
+function summarizeWindow(values) {
+  const rows = values.map((value, i) => ({ timestamp: String(i + 1), value })).filter(r => Number.isFinite(r.value));
+  if (rows.length < 3) return null;
+  const result = analyze(rows);
+  const mean = rows.reduce((sum, r) => sum + r.value, 0) / rows.length;
+  return { ...result, mean };
+}
+
+function changeLabel(current, previous, threshold = 0.12) {
+  if (!Number.isFinite(current) || !Number.isFinite(previous)) return "sem comparação";
+  const base = Math.max(Math.abs(previous), 1e-9);
+  const ratio = (current - previous) / base;
+  if (Math.abs(ratio) < threshold) return "sem mudança relevante";
+  return ratio > 0 ? "aumentou" : "diminuiu";
+}
+
+function compareHistoricalWindows(text) {
+  const { timestamps, signals } = parseTemporalDataset(text);
+  if (!signals.length) return null;
+  const primary = signals[0];
+  const finite = primary.values.map((value, index) => ({ value, timestamp: timestamps[index] })).filter(r => Number.isFinite(r.value));
+  const midpoint = Math.floor(finite.length / 2);
+  const previousValues = finite.slice(0, midpoint).map(r => r.value);
+  const currentValues = finite.slice(midpoint).map(r => r.value);
+  const previous = summarizeWindow(previousValues);
+  const current = summarizeWindow(currentValues);
+  if (!previous || !current) return null;
+  const anomalyRatePrevious = previous.anomalyCount / Math.max(previousValues.length, 1);
+  const anomalyRateCurrent = current.anomalyCount / Math.max(currentValues.length, 1);
+  const eventSource = detectSynchronizedEvents(text);
+  const splitIndex = Math.max(1, Math.floor(finite.length / 2));
+  const eventPrevious = eventSource.filter(e => e.index <= splitIndex).length;
+  const eventCurrent = eventSource.filter(e => e.index > splitIndex).length;
+  const volatilityChange = changeLabel(current.volatility, previous.volatility);
+  const anomalyChange = changeLabel(anomalyRateCurrent, anomalyRatePrevious);
+  const eventChange = changeLabel(eventCurrent, eventPrevious);
+  const meanChange = changeLabel(current.mean, previous.mean);
+  const headline = `${primary.name}: no período atual, a volatilidade ${volatilityChange} e a taxa de anomalias ${anomalyChange} em relação ao período anterior.`;
+  return {
+    signal: primary.name,
+    previous, current, previousValues, currentValues,
+    previousLabel: timestamps[0] || "início",
+    currentLabel: timestamps[splitIndex] || "segunda metade",
+    anomalyRatePrevious, anomalyRateCurrent,
+    eventPrevious, eventCurrent,
+    volatilityChange, anomalyChange, eventChange, meanChange, headline
+  };
+}
+
+function renderHistoricalComparison(text) {
+  const summary = document.querySelector("#historySummary");
+  const list = document.querySelector("#historyList");
+  const headline = document.querySelector("#historyHeadline");
+  if (!summary || !list || !headline) return;
+  const result = compareHistoricalWindows(text);
+  if (!result) {
+    headline.textContent = "Envie uma série com dados suficientes para comparar dois períodos.";
+    summary.innerHTML = "";
+    list.innerHTML = "";
+    return;
+  }
+  headline.textContent = result.headline;
+  const cards = [
+    ["Volatilidade", result.previous.volatility, result.current.volatility, result.volatilityChange],
+    ["Média", result.previous.mean, result.current.mean, result.meanChange],
+    ["Taxa de anomalias", result.anomalyRatePrevious * 100, result.anomalyRateCurrent * 100, result.anomalyChange],
+    ["Eventos conjuntos", result.eventPrevious, result.eventCurrent, result.eventChange]
+  ];
+  summary.innerHTML = cards.map(([label, prev, curr, change]) => `<div class="history-stat"><span>${label}</span><strong>${Number(prev).toFixed(2)} → ${Number(curr).toFixed(2)}</strong><small>${change}</small></div>`).join("");
+  list.innerHTML = `<div class="history-window"><span class="eyebrow">PERÍODO ANTERIOR</span><strong>${result.previousValues.length} pontos</strong><small>${result.previousLabel}</small></div><div class="history-window"><span class="eyebrow">PERÍODO ATUAL</span><strong>${result.currentValues.length} pontos</strong><small>${result.currentLabel}</small></div>`;
+}
+
+function renderEventAlerts(text) {
   const list=document.querySelector("#eventAlertList");
   const summary=document.querySelector("#eventAlertSummary");
   if(!list||!summary)return;
@@ -868,7 +953,7 @@ window.addEventListener("resize",()=>{ if(!dashboard.classList.contains("hidden"
 
 apiBtn.addEventListener("click", async () => {
   const file = input.files?.[0];
-  const base = apiUrl.value.trim().replace(/\\/$/, "");
+  const base = apiUrl.value.trim().replace(/\/$/, "");
   if (!file) { statusEl.textContent = "Carregue um CSV primeiro."; return; }
   if (!base) { statusEl.textContent = "Informe a URL da API, por exemplo http://localhost:8000."; return; }
   try {
