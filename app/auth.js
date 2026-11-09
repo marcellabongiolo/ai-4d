@@ -1,12 +1,26 @@
 const AI4D_TOKEN_KEY="ai4d_access_token";
 const AI4D_USER_KEY="ai4d_user_id";
+const AI4D_TOKEN_API_KEY="ai4d_token_api";
 
-function getAuthToken(){return localStorage.getItem(AI4D_TOKEN_KEY);}
+function normalizedApiBase(value=getApiBase()){
+  try{
+    const url=new URL(value,window.location.href);
+    const local=["localhost","127.0.0.1","[::1]"].includes(url.hostname);
+    if(url.username||url.password||url.search||url.hash||!(url.protocol==="https:"||(local&&url.protocol==="http:")))return null;
+    return url.origin+url.pathname.replace(/\/+$/,"");
+  }catch{return null;}
+}
+
+function getAuthToken(){
+  const base=normalizedApiBase();
+  return base&&localStorage.getItem(AI4D_TOKEN_API_KEY)===base?localStorage.getItem(AI4D_TOKEN_KEY):null;
+}
 function getApiBase(){
   const input=document.querySelector("#apiUrl");
   return (input?.value||localStorage.getItem("ai4d_api_url")||"http://localhost:8000").trim().replace(/\/$/,"");
 }
 function setAuthSession(data){
+  localStorage.setItem(AI4D_TOKEN_API_KEY,data.api_base);
   localStorage.setItem(AI4D_TOKEN_KEY,data.access_token);
   localStorage.setItem(AI4D_USER_KEY,String(data.user_id));
   updateAuthUI();
@@ -15,6 +29,7 @@ function setAuthSession(data){
 function clearAuthSession(){
   localStorage.removeItem(AI4D_TOKEN_KEY);
   localStorage.removeItem(AI4D_USER_KEY);
+  localStorage.removeItem(AI4D_TOKEN_API_KEY);
   localStorage.removeItem("ai4d_project_id");
   updateAuthUI();
   window.dispatchEvent(new Event("ai4d-auth-changed"));
@@ -36,12 +51,13 @@ function updateAuthUI(){
   }
 }
 async function authRequest(path,payload){
-  const base=getApiBase();
+  const base=normalizedApiBase();
+  if(!base)throw new Error("Use uma API HTTPS ou um endereço HTTP local.");
   localStorage.setItem("ai4d_api_url",base);
   const response=await fetch(base+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.detail||"Não foi possível concluir a operação.");
-  return data;
+  return {...data,api_base:base};
 }
 
 document.addEventListener("DOMContentLoaded",()=>{
@@ -51,7 +67,10 @@ document.addEventListener("DOMContentLoaded",()=>{
   const apiInput=document.querySelector("#apiUrl");
   if(apiInput){
     apiInput.value=localStorage.getItem("ai4d_api_url")||"http://localhost:8000";
-    apiInput.addEventListener("change",()=>localStorage.setItem("ai4d_api_url",apiInput.value.trim().replace(/\/$/,"")));
+    apiInput.addEventListener("change",()=>{
+      localStorage.setItem("ai4d_api_url",apiInput.value.trim().replace(/\/$/,""));
+      updateAuthUI();
+    });
   }
   register?.addEventListener("submit",async event=>{
     event.preventDefault();
@@ -77,16 +96,24 @@ document.addEventListener("DOMContentLoaded",()=>{
 
 const originalFetch=window.fetch.bind(window);
 window.fetch=async (input,init={})=>{
-  const url=typeof input==="string"?input:input.url;
+  const url=typeof input==="string"?input:(input.url||String(input));
   const token=getAuthToken();
-  const protectedRequest=/\/sessions(?:\?|$)/.test(url||"");
+  let protectedRequest=false;
+  try{
+    const target=new URL(url,window.location.href);
+    const base=normalizedApiBase();
+    const expected=base?new URL(base):null;
+    const prefix=expected?expected.pathname.replace(/\/+$/,""):"";
+    const protectedPath=["sessions","projects","datasets"].some(route=>target.pathname===prefix+"/"+route||target.pathname.startsWith(prefix+"/"+route+"/"));
+    protectedRequest=!!expected&&target.origin===expected.origin&&!target.username&&!target.password&&protectedPath;
+  }catch{}
   if(token&&protectedRequest){
     const headers=new Headers(init.headers||((typeof input!=="string")?input.headers:undefined));
     headers.set("Authorization","Bearer "+token);
     init={...init,headers};
   }
   const response=await originalFetch(input,init);
-  if(protectedRequest&&response.status===401){
+  if(protectedRequest&&token&&response.status===401&&getAuthToken()===token){
     clearAuthSession();
   }
   return response;
