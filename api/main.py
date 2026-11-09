@@ -145,9 +145,14 @@ def clear_sessions(current_user: User = Depends(get_current_user), db: Session =
     db.query(AnalysisSession).filter(AnalysisSession.user_id == current_user.id).delete()
     db.commit()
 
+MAX_PREDICTION_UPLOAD_BYTES = 8 * 1024 * 1024
+MAX_PREDICTION_POINTS = 20_000
+
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)) -> dict[str, object]:
-    raw = await file.read()
+    raw = await file.read(MAX_PREDICTION_UPLOAD_BYTES + 1)
+    if len(raw) > MAX_PREDICTION_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Prediction CSV exceeds the 8 MiB limit.")
     try:
         text = raw.decode("utf-8")
         data = np.genfromtxt(StringIO(text), delimiter=",", names=True, dtype=None, encoding="utf-8")
@@ -155,6 +160,10 @@ async def predict(file: UploadFile = File(...)) -> dict[str, object]:
         numeric_column = next((name for name in names[1:] if np.issubdtype(np.asarray(data[name]).dtype, np.number)), None)
         if numeric_column is None: raise ValueError("No numeric signal column found.")
         values = np.asarray(data[numeric_column], dtype=float)
+        if values.ndim != 1 or not np.isfinite(values).all():
+            raise ValueError("Signal must contain only finite numeric values.")
+        if len(values) > MAX_PREDICTION_POINTS:
+            raise ValueError("Prediction CSV exceeds the observation limit.")
         if len(values) < 8: raise ValueError("At least 8 observations are required.")
         candidates = [lag for lag in [1, 3, 5] if len(values) > lag + 2]
         if not candidates: raise ValueError("Not enough observations for model selection.")
@@ -169,7 +178,7 @@ async def predict(file: UploadFile = File(...)) -> dict[str, object]:
         mae, rmse, selected_model, selected_lags = min(results, key=lambda item: (item[0], item[1]))
         X = np.array([values[i-selected_lags:i] for i in range(selected_lags, len(values))]); y = values[selected_lags:]
         split = min(max(1, int(len(X) * 0.75)), len(X) - 1)
-        next_prediction = float(LinearRegression().fit(X[:split], y[:split]).predict(values[-selected_lags:].reshape(1, -1))[0]) if selected_model == "linear-regression-lag" else float(values[-1])
-        return {"signal": numeric_column, "current": float(values[-1]), "next_prediction": next_prediction, "mae": float(mae), "rmse": float(rmse), "train_samples": int(split), "test_samples": int(len(y) - split), "model": selected_model, "lags": int(selected_lags)}
+        next_prediction = float(LinearRegression().fit(X, y).predict(values[-selected_lags:].reshape(1, -1))[0]) if selected_model == "linear-regression-lag" else float(values[-1])
+        return {"evaluation": "validation-used-for-model-selection", "signal": numeric_column, "current": float(values[-1]), "next_prediction": next_prediction, "mae": float(mae), "rmse": float(rmse), "train_samples": int(split), "test_samples": int(len(y) - split), "model": selected_model, "lags": int(selected_lags)}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
